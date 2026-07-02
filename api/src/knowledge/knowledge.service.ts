@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { EventBus } from '../events/event-bus';
 import { DocumentEmbeddingService } from '../document-embedding/document-embedding.service';
+import { extractDocumentText } from '../document-embedding/text-extractor';
 import {
   CreateDocumentDto,
   UpdateDocumentDto,
@@ -173,9 +174,16 @@ export class KnowledgeService {
     });
 
     // Index document for semantic search (non-blocking)
-    this.embeddingService.indexDocuments(tenantId, [doc]).catch((err) =>
-      this.logger.warn(`Failed to index document ${doc.id}: ${err.message}`),
-    );
+    // Extract body text (PDF / text formats) so retrieval can match on
+    // real content, not just title + description. Metadata-only fallback
+    // when extraction is unsupported (Office docs) or fails.
+    void this.indexWithExtractedText(tenantId, {
+      id: doc.id,
+      title: doc.title,
+      description: doc.description ?? null,
+      fileObjectKey: objectKey,
+      mimeType: file.mimetype,
+    });
 
     return doc;
   }
