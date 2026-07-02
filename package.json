@@ -6,7 +6,7 @@
   "workspaces": ["api", "web"],
   "scripts": {
     "build": "turbo run build",
-    "build:dev": "turbo run build",
+    "build:dev": "turbo run build && node scripts/assemble-dist.js",
     "dev": "turbo run dev --filter=web --",
     "test": "turbo run test",
     "lint": "turbo run lint",
