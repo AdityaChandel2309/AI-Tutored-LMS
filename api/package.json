@@ -25,6 +25,7 @@
     "validate:seed": "ts-node -r tsconfig-paths/register src/scripts/seed-validation.ts",
     "seed:demo-courses": "ts-node -r tsconfig-paths/register src/scripts/seed-demo-courses.ts",
     "backfill:enrollment-progress": "ts-node -r tsconfig-paths/register src/scripts/backfill-enrollment-progress.ts",
+    "backfill:document-embeddings": "ts-node -r tsconfig-paths/register src/scripts/backfill-document-embeddings.ts",
     "validate:deploy": "ts-node -r tsconfig-paths/register ../scripts/validate-deployment.ts",
     "validate:workflows": "ts-node -r tsconfig-paths/register ../scripts/run-workflows.ts",
     "validate:report": "ts-node -r tsconfig-paths/register ../scripts/generate-report.ts",
