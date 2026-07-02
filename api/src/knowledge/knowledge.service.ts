@@ -427,4 +427,3 @@ export class KnowledgeService {
     return { scanned: docs.length, indexed };
   }
 }
-}
