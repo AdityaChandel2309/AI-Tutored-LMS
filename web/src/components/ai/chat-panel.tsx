@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { FileText, Send } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export interface Message {
   role: string;
   content: string;
-  sources?: { id: string; title: string; type: string }[];
+  sources?: { id: string; title: string; type?: string; fileName?: string }[];
 }
 
 export function ChatPanel({ messages, onSend, loading, placeholder }: {
@@ -42,12 +43,22 @@ export function ChatPanel({ messages, onSend, loading, placeholder }: {
               {msg.sources && msg.sources.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-[var(--color-border)]">
                   <p className="text-xs font-medium text-[var(--color-muted-foreground)] mb-1">Sources:</p>
-                  {msg.sources.map((s) => (
-                    <p key={s.id} className="flex items-center gap-1 text-xs text-[var(--color-primary)]">
-                      <FileText className="h-3 w-3 shrink-0" aria-hidden />
-                      <span>{s.title} ({s.type})</span>
-                    </p>
-                  ))}
+                  <ul className="space-y-1">
+                    {dedupeSources(msg.sources).map((s) => (
+                      <li key={s.id}>
+                        <Link
+                          href={`/dashboard/knowledge/${s.id}`}
+                          className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"
+                        >
+                          <FileText className="h-3 w-3 shrink-0" aria-hidden />
+                          <span className="truncate">
+                            {s.title}
+                            {s.fileName ? ` · ${s.fileName}` : ""}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
@@ -74,4 +85,18 @@ export function ChatPanel({ messages, onSend, loading, placeholder }: {
       </form>
     </div>
   );
+}
+
+// Retrieval returns one entry per chunk, so the same document can appear
+// multiple times. Collapse to unique document IDs, keeping first occurrence
+// order (retrieval already ranks by relevance).
+function dedupeSources<T extends { id: string }>(sources: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const s of sources) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push(s);
+  }
+  return out;
 }
