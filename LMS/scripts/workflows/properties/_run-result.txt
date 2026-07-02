@@ -1,0 +1,16 @@
+EXIT_CODE: 1
+OUTPUT:
+Running property test: Course creation always produces draft status (10 iterations)...
+Unexpected error: Error: Seed result file not found at /home/adityachandel/projects/LMS/scripts/.validation-seed-result.json. Run validate:seed first.
+    at loadSeedResult (/home/adityachandel/projects/LMS/scripts/workflows/properties/course-draft-status.property.ts:34:11)
+    at runCourseDraftStatusProperty (/home/adityachandel/projects/LMS/scripts/workflows/properties/course-draft-status.property.ts:89:16)
+    at Object.<anonymous> (/home/adityachandel/projects/LMS/scripts/workflows/properties/course-draft-status.property.ts:185:3)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Module.m._compile (/home/adityachandel/projects/LMS/api/node_modules/ts-node/src/index.ts:1618:23)
+    at node:internal/modules/cjs/loader:1838:10
+    at Object.require.extensions.<computed> [as .ts] (/home/adityachandel/projects/LMS/api/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+STDERR:

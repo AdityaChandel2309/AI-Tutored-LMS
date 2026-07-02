@@ -1,0 +1,2 @@
+DIRECT RUN ERROR:
+Seed result file not found at /home/adityachandel/projects/LMS/scripts/.validation-seed-result.json. Run validate:seed first.

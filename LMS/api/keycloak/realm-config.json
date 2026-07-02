@@ -1,0 +1,14 @@
+{
+  "realm": "LMS",
+  "enabled": true,
+  "client": {
+    "clientId": "lms-web",
+    "publicClient": false,
+    "directAccessGrantsEnabled": true,
+    "standardFlowEnabled": true,
+    "serviceAccountsEnabled": false
+  },
+  "roles": ["admin", "instructor", "learner"],
+  "redirectUris": ["http://localhost:3001/callback"],
+  "webOrigins": ["http://localhost:3001", "http://127.0.0.1:3001"]
+}

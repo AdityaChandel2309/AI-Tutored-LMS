@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+:root {
+  --font-body:
+    "Avenir Next",
+    "Segoe UI",
+    "Helvetica Neue",
+    sans-serif;
+  --font-display:
+    "Trebuchet MS",
+    "Avenir Next Condensed",
+    "Arial Narrow",
+    sans-serif;
+
+  /* Primary */
+  --color-primary: oklch(57% 0.18 246);
+  --color-primary-foreground: oklch(98% 0 0);
+  --color-primary-soft: oklch(95% 0.03 244);
+
+  /* Background */
+  --color-background: oklch(97% 0.01 95);
+  --color-foreground: oklch(22% 0.02 255);
+
+  /* Surface */
+  --color-card: oklch(99% 0.01 95);
+  --color-card-foreground: oklch(22% 0.02 255);
+  --color-card-muted: oklch(96% 0.02 95);
+
+  /* Border */
+  --color-border: oklch(87% 0.02 95);
+
+  /* Muted */
+  --color-muted: oklch(94% 0.02 95);
+  --color-muted-foreground: oklch(45% 0.03 255);
+
+  /* Accent */
+  --color-accent: oklch(73% 0.14 165);
+  --color-accent-soft: oklch(95% 0.04 165);
+
+  /* Danger */
+  --color-danger: oklch(61% 0.2 25);
+  --color-danger-soft: oklch(96% 0.03 25);
+
+  /* Radius */
+  --radius: 18px;
+}
+
+html,
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-body), sans-serif;
+  min-height: 100%;
+}
+
+* {
+  border-color: var(--color-border);
+  box-sizing: border-box;
+}
+
+body {
+  background-image:
+    radial-gradient(
+      circle at top left,
+      color-mix(
+        in oklch,
+        var(--color-primary-soft) 80%,
+        transparent
+      ),
+      transparent 32%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(
+        in oklch,
+        var(--color-background) 92%,
+        white
+      ),
+      var(--color-background)
+    );
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), sans-serif;
+  letter-spacing: -0.04em;
+}
+
+::selection {
+  background: color-mix(
+    in oklch,
+    var(--color-primary) 22%,
+    white
+  );
+}
+
+code {
+  font-family:
+    "IBM Plex Mono",
+    "SFMono-Regular",
+    monospace;
+}

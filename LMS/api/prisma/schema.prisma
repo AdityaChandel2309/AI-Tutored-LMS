@@ -1,0 +1,647 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  subdomain String   @unique
+  createdAt DateTime @default(now())
+
+  users     User[]
+  courses   Course[]
+  categories Category[]
+  videos    Video[]
+  scormPackages ScormPackage[]
+  certificateTemplates CertificateTemplate[]
+  issuedCertificates   IssuedCertificate[]
+  notifications        Notification[]
+  departments          Department[]
+  designations         Designation[]
+  employeeProfiles     EmployeeProfile[]
+  projects             Project[]
+  documentCategories   DocumentCategory[]
+  documents            Document[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  keycloakId   String   @unique
+  email        String   @unique
+  firstName    String?
+  lastName     String?
+  avatarUrl    String?
+  roles        String[]
+  isActive     Boolean  @default(true)
+
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+
+  createdCourses Course[]      @relation("CourseCreatedBy")
+  enrollments    Enrollment[]
+  uploadedVideos Video[]
+  uploadedScormPackages ScormPackage[]
+  issuedCertificates    IssuedCertificate[]
+  notifications         Notification[]
+  employeeProfile       EmployeeProfile?
+  managedDepartments    Department[]       @relation("DepartmentManager")
+  reportees             EmployeeProfile[]  @relation("ReportingManager")
+  ownedProjects         Project[]          @relation("ProjectOwner")
+  projectMemberships    ProjectMember[]
+  uploadedDocuments     Document[]         @relation("DocumentUploader")
+  uploadedDocVersions   DocumentVersion[]  @relation("DocVersionUploader")
+
+  @@index([tenantId])
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courses   Course[]
+
+  @@unique([tenantId, slug])
+}
+
+model Course {
+  id          String       @id @default(uuid())
+  tenantId    String
+  categoryId  String?
+  title       String
+  slug        String
+  description String?
+  status      String       @default("draft")
+  visibility  String       @default("private")
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation("CourseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  modules     CourseModule[]
+  enrollments Enrollment[]
+  videos      Video[]
+  scormPackages ScormPackage[]
+  certificateTemplate CertificateTemplate?
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([tenantId, categoryId])
+}
+
+model CourseModule {
+  id        String    @id @default(uuid())
+  title     String
+  order     Int
+  courseId  String
+  createdAt DateTime  @default(now())
+
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+
+  @@unique([courseId, order])
+}
+
+model Lesson {
+  id        String       @id @default(uuid())
+  title     String
+  type      String
+  content   Json?
+  duration  Int?
+  order     Int          @default(0)
+  moduleId  String
+  createdAt DateTime     @default(now())
+
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progresses Progress[]
+  videos    Video[]
+  scormPackages ScormPackage[]
+  assessment Assessment?
+
+  @@unique([moduleId, order])
+}
+
+model Enrollment {
+  id          String    @id @default(uuid())
+  userId      String
+  courseId     String
+  progress    Float     @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progresses  Progress[]
+  attempts    AssessmentAttempt[]
+  issuedCertificates IssuedCertificate[]
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model Assessment {
+  id            String   @id @default(uuid())
+  lessonId      String   @unique
+  title         String
+  description   String?
+  passingScore  Int      @default(70)
+  maxAttempts   Int?
+  timeLimitSec  Int?
+  isRandomized  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lesson        Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions     Question[]
+  attempts      AssessmentAttempt[]
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  assessmentId  String
+  type          String
+  text          String
+  explanation   String?
+  points        Int      @default(1)
+  order         Int
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  assessment    Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  options       QuestionOption[]
+  answers       AttemptAnswer[]
+
+  @@unique([assessmentId, order])
+}
+
+model QuestionOption {
+  id          String  @id @default(uuid())
+  questionId  String
+  text        String
+  isCorrect   Boolean @default(false)
+  order       Int
+
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, order])
+}
+
+model AssessmentAttempt {
+  id            String    @id @default(uuid())
+  assessmentId  String
+  enrollmentId  String
+  attemptNumber Int
+  score         Float?
+  passed        Boolean?
+  startedAt     DateTime  @default(now())
+  submittedAt   DateTime?
+  durationSec   Int?
+  createdAt     DateTime  @default(now())
+
+  assessment    Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  enrollment    Enrollment      @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  answers       AttemptAnswer[]
+
+  @@unique([assessmentId, enrollmentId, attemptNumber])
+  @@index([enrollmentId])
+}
+
+model AttemptAnswer {
+  id                String   @id @default(uuid())
+  attemptId         String
+  questionId        String
+  selectedOptionIds String[]
+  isCorrect         Boolean?
+  createdAt         DateTime @default(now())
+
+  attempt     AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question    Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+}
+
+model Progress {
+  id           String    @id @default(uuid())
+  enrollmentId String
+  lessonId     String
+  state        String    @default("not_started")
+  progress     Float     @default(0)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  lastViewedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+}
+
+enum VideoStatus {
+  PENDING
+  UPLOADING
+  READY
+  FAILED
+  DELETED
+}
+
+enum ScormStatus {
+  PENDING
+  READY
+  FAILED
+  DELETED
+}
+
+model Video {
+  id          String      @id @default(uuid())
+  tenantId    String
+  courseId    String
+  lessonId    String?
+  title       String
+  status      VideoStatus @default(PENDING)
+  objectKey   String
+  sizeBytes   Int?
+  durationSec  Int?
+  thumbnailKey String?
+  mimeType     String      @default("video/mp4")
+  uploadedBy  String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course      Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson      Lesson?     @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  uploader    User        @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, courseId])
+}
+
+model ScormPackage {
+  id               String     @id @default(uuid())
+  tenantId         String
+  courseId         String
+  lessonId         String?
+  title            String
+  status           ScormStatus @default(PENDING)
+  objectKey        String
+  manifestPath     String?
+  launchPath       String?
+  manifestIdentifier String?
+  scormVersion     String?
+  sizeBytes        Int?
+  uploadedBy       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson    Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  uploader  User    @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, courseId])
+}
+
+model CertificateTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String
+  courseId    String   @unique
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  issuedCerts IssuedCertificate[]
+}
+
+model IssuedCertificate {
+  id                String   @id @default(uuid())
+  templateId        String
+  enrollmentId      String
+  userId            String
+  tenantId          String
+  certificateNumber String   @unique
+  learnerName       String
+  courseTitle       String
+  completionDate    DateTime
+  scoreSummary      String?
+  pdfObjectKey      String?
+  issuedAt          DateTime @default(now())
+
+  template     CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment          @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, enrollmentId])
+  @@index([tenantId, userId])
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String
+  tenantId    String
+  type        String
+  title       String
+  body        String
+  metadata    Json?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId, tenantId, isRead])
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(uuid())
+  tenantId    String
+  actorId     String?
+  type        String
+  entityId    String?
+  entityType  String?
+  occurredAt  DateTime
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, type, createdAt])
+  @@index([tenantId, actorId])
+  @@index([tenantId, occurredAt])
+}
+
+// ─── Organization & Employee Domain ─────────────────
+
+model Department {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  code      String
+  parentId  String?
+  managerId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    parent    Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Department[] @relation("DepartmentHierarchy")
+  manager   User?        @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employees EmployeeProfile[]
+  projects  Project[]
+
+  @@unique([tenantId, code])
+}
+
+model Designation {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  level     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees EmployeeProfile[]
+
+  @@unique([tenantId, name])
+}
+
+model EmployeeProfile {
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  tenantId           String
+  employeeCode       String
+  departmentId       String?
+  designationId      String?
+  reportingManagerId String?
+  dateOfJoining      DateTime?
+  location           String?
+  phone              String?
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department        Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  designation       Designation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  reportingManager  User?        @relation("ReportingManager", fields: [reportingManagerId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, employeeCode])
+}
+
+// ─── Project Tracking Domain ────────────────────
+
+model Project {
+  id            String    @id @default(uuid())
+  tenantId      String
+  title         String
+  description   String?
+  status        String    @default("planning")
+  departmentId  String?
+  ownerId       String
+  startDate     DateTime?
+  targetEndDate DateTime?
+  actualEndDate DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  owner      User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  milestones Milestone[]
+  members    ProjectMember[]
+
+  @@index([tenantId, status])
+}
+
+model Milestone {
+  id          String    @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  status      String    @default("pending")
+  dueDate     DateTime?
+  completedAt DateTime?
+  order       Int
+  createdAt   DateTime  @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, order])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+// ─── Enterprise Knowledge Domain ────────────────────
+
+model DocumentCategory {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  slug        String
+  parentId    String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent    DocumentCategory?  @relation("DocCategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  DocumentCategory[] @relation("DocCategoryHierarchy")
+  documents Document[]
+
+  @@unique([tenantId, slug])
+}
+
+model Document {
+  id            String   @id @default(uuid())
+  tenantId      String
+  categoryId    String?
+  title         String
+  description   String?
+  type          String   @default("policy")
+  fileObjectKey String
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  version       Int      @default(1)
+  uploadedById  String
+  status        String   @default("draft")
+  tags          String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category   DocumentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  uploadedBy User              @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  versions   DocumentVersion[]
+  chunks     DocumentChunk[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, type])
+}
+
+model DocumentVersion {
+  id            String   @id @default(uuid())
+  documentId    String
+  versionNumber Int
+  fileObjectKey String
+  fileName      String
+  fileSize      Int
+  uploadedById  String
+  changeNote    String?
+  createdAt     DateTime @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("DocVersionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, versionNumber])
+}
+
+// ─── AI Domain ──────────────────────────────────────
+
+model AiTutorMessage {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  courseId   String
+  lessonId  String?
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, userId, courseId])
+}
+
+model KnowledgeAssistantMessage {
+  id           String   @id @default(uuid())
+  tenantId     String
+  userId       String
+  role         String
+  content      String
+  sourceDocIds String[]
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, userId])
+}
+
+// ─── Audit Domain ───────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenantId   String
+  actorId    String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, actorId])
+  @@index([tenantId, entityType])
+}
+
+model DocumentChunk {
+  id         String   @id @default(uuid())
+  documentId String
+  tenantId   String
+  chunkIndex Int      @default(0)
+  chunkText  String
+  tokenCount Int?
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([tenantId])
+}
+
+// ─── SCORM Runtime Domain ───────────────────
+
+model ScormRuntimeData {
+  id           String   @id @default(uuid())
+  packageId    String
+  enrollmentId String
+  tenantId     String
+  cmiData      Json     @default("{}")
+  suspendData  String?  @db.Text
+  location     String?
+  score        Float?
+  status       String   @default("not attempted")
+  totalTime    String?  @default("0000:00:00.00")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([packageId, enrollmentId])
+  @@index([tenantId])
+}

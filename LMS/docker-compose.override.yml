@@ -1,0 +1,12 @@
+# Dev-mode overrides — automatically merged by `docker compose up`
+# Delete or rename this file on production servers.
+services:
+  api:
+    ports:
+      - "3000:3000"
+
+  web:
+    ports:
+      - "3001:3001"
+    # volumes:
+    #   - ./web/src:/app/src:ro,z
