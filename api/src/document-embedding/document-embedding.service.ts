@@ -5,6 +5,12 @@ import { LlmClient } from '../common/ai/llm-client';
 const CHUNK_MAX_CHARS = 2000;
 const CHUNK_OVERLAP_CHARS = 200;
 
+/**
+ * Cap on chunks embedded per document. Prevents a runaway 500-page PDF
+ * from consuming the entire embedding budget for one upload.
+ */
+const MAX_CHUNKS_PER_DOCUMENT = 200;
+
 export interface ChunkResult {
   index: number;
   text: string;
@@ -64,7 +70,17 @@ export class DocumentEmbeddingService {
    */
   async indexDocuments(
     tenantId: string,
-    docs: Array<{ id: string; title: string; description?: string | null }>,
+    docs: Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      /**
+       * Optional extracted body text (from PDF / text / office parsing).
+       * When supplied it is embedded alongside title + description so
+       * retrieval can match on real document content, not just metadata.
+       */
+      bodyText?: string | null;
+    }>,
   ): Promise<number> {
     let indexed = 0;
 
@@ -75,10 +91,15 @@ export class DocumentEmbeddingService {
 
       if (existingCount[0]?.count > 0) continue;
 
-      const text = [doc.title, doc.description].filter(Boolean).join('\n\n');
+      // Header carries title + description so metadata is always searchable,
+      // even when body extraction fails. Body is concatenated after so it
+      // gets its own chunks that can match on real content.
+      const header = [doc.title, doc.description].filter(Boolean).join('\n\n');
+      const body = (doc.bodyText ?? '').trim();
+      const text = [header, body].filter(Boolean).join('\n\n');
       if (!text) continue;
 
-      const chunks = this.chunkText(text);
+      const chunks = this.chunkText(text).slice(0, MAX_CHUNKS_PER_DOCUMENT);
 
       for (const chunk of chunks) {
         const { embedding, usedFallback } = await this.llm.embed(chunk.text);
