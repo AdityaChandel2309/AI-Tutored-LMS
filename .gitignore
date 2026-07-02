@@ -1,5 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+.next/
+.output/
+.vinxi/
+.turbo/
+.nitro/
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.production.example
+api/.env
+api/.env.local
+api/.env.*.local
+!api/.env.example
+web/.env
+web/.env.local
+web/.env.*.local
+!web/.env.local.example
+*.local
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,26 +36,27 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
+# Tooling caches
 .tanstack/**
-.nitro
-*.local
-
-# Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+*.tsbuildinfo
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# IDE / OS
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+next-env.d.ts
+
+# Temp
+*.tmp
+.tmp-video-processing/
+
+# Leftover local workspace state from the nested LMS checkout
+LMS/
