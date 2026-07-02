@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { EventBus } from '../events/event-bus';
 import { DocumentEmbeddingService } from '../document-embedding/document-embedding.service';
+import { extractDocumentText } from '../document-embedding/text-extractor';
 import {
   CreateDocumentDto,
   UpdateDocumentDto,
@@ -173,9 +174,16 @@ export class KnowledgeService {
     });
 
     // Index document for semantic search (non-blocking)
-    this.embeddingService.indexDocuments(tenantId, [doc]).catch((err) =>
-      this.logger.warn(`Failed to index document ${doc.id}: ${err.message}`),
-    );
+    // Extract body text (PDF / text formats) so retrieval can match on
+    // real content, not just title + description. Metadata-only fallback
+    // when extraction is unsupported (Office docs) or fails.
+    void this.indexWithExtractedText(tenantId, {
+      id: doc.id,
+      title: doc.title,
+      description: doc.description ?? null,
+      fileObjectKey: objectKey,
+      mimeType: file.mimetype,
+    });
 
     return doc;
   }
@@ -340,5 +348,82 @@ export class KnowledgeService {
     if (cat._count.documents > 0)
       throw new ForbiddenException('Cannot delete category with documents');
     return this.prisma.documentCategory.delete({ where: { id } });
+  }
+
+  // ─── Embedding helpers ────────────────────
+
+  /**
+   * Download the document object from storage, extract text where possible,
+   * and hand it to the embedding service. Always metadata-only fallback on
+   * failure — this is best-effort and must not break upload flows.
+   */
+  async indexWithExtractedText(
+    tenantId: string,
+    doc: {
+      id: string;
+      title: string;
+      description: string | null;
+      fileObjectKey: string;
+      mimeType: string | null;
+    },
+  ): Promise<void> {
+    let bodyText: string | null = null;
+    try {
+      const buffer = await this.storage.getObjectBuffer({
+        objectKey: doc.fileObjectKey,
+        bucket: 'knowledge',
+      });
+      bodyText = await extractDocumentText(buffer, doc.mimeType);
+    } catch (err) {
+      this.logger.warn(
+        `Text extraction failed for document ${doc.id}: ${(err as Error).message}`,
+      );
+    }
+
+    try {
+      await this.embeddingService.indexDocuments(tenantId, [
+        {
+          id: doc.id,
+          title: doc.title,
+          description: doc.description,
+          bodyText,
+        },
+      ]);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to index document ${doc.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Backfill helper — reindex every document in a tenant that has no chunks
+   * yet, extracting body text where possible. Used by
+   * `scripts/backfill-document-embeddings.ts`.
+   */
+  async backfillEmbeddings(tenantId: string): Promise<{ scanned: number; indexed: number }> {
+    const docs = await this.prisma.document.findMany({
+      where: { tenantId, status: { not: 'archived' } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        fileObjectKey: true,
+        mimeType: true,
+      },
+    });
+
+    let indexed = 0;
+    for (const doc of docs) {
+      const existing = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*)::bigint as count FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
+      `;
+      if (existing[0]?.count && existing[0].count > 0n) continue;
+
+      await this.indexWithExtractedText(tenantId, doc);
+      indexed++;
+    }
+
+    return { scanned: docs.length, indexed };
   }
 }
