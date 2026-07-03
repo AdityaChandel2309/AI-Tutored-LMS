@@ -82,9 +82,10 @@ export class StorageService {
       ContentType: input.contentType,
     });
 
-    return getSignedUrl(this.client, command, {
+    const signed = await getSignedUrl(this.client, command, {
       expiresIn: input.expiresInSeconds,
     });
+    return this.rewriteToPublicHost(signed);
   }
 
   // ── Presigned download URL ────────────────
@@ -101,9 +102,10 @@ export class StorageService {
       Key: input.objectKey,
     });
 
-    return getSignedUrl(this.client, command, {
+    const signed = await getSignedUrl(this.client, command, {
       expiresIn: input.expiresInSeconds,
     });
+    return this.rewriteToPublicHost(signed);
   }
 
   // ── Object verification ───────────────────
@@ -175,6 +177,7 @@ export class StorageService {
   // ── Internal helpers ──────────────────────
 
   private async ensureBucket(bucketName: string) {
+    // no-op guard handled below
     if (!this.bucketReadyMap.has(bucketName)) {
       this.bucketReadyMap.set(
         bucketName,
