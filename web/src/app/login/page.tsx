@@ -252,7 +252,7 @@ function LoginExperience() {
                           required
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
-                          placeholder="admin@lms.dev"
+                          placeholder="you@company.com"
                           className="h-11 w-full rounded-lg border-0 bg-[#001F63] px-4 text-sm text-white transition-all placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
                         />
                       </div>
@@ -272,7 +272,7 @@ function LoginExperience() {
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Admin@1234"
+                          placeholder="••••••••"
                           className="h-11 w-full rounded-lg border-0 bg-[#001F63] px-4 text-sm text-white transition-all placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
                         />
                       </div>
