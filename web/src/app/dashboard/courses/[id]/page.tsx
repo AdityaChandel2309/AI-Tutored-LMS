@@ -22,9 +22,8 @@ import {
   useCompleteLesson,
 } from "@/lib/api/courses";
 import { useMyCertificates } from "@/lib/api/certificates";
-import { apiGet } from "@/lib/api/client";
 import { getApiUrl } from "@/lib/api";
-import type { Lesson, CertificatePdfResponse } from "@/lib/types/course";
+import type { Lesson } from "@/lib/types/course";
 
 // ─── Resume state persistence ──────────────
 // Stores the last active lesson per course in localStorage
