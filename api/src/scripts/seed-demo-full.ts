@@ -615,7 +615,12 @@ async function main() {
               type: l.type,
               order: lOrder++,
               duration: l.durationSec,
-              content: l.type === 'text' ? { body: l.body ?? '' } : Prisma.JsonNull,
+              content:
+                l.type === 'text'
+                  ? { body: l.body ?? '' }
+                  : l.type === 'video' && l.videoUrl
+                    ? { externalUrl: l.videoUrl, posterUrl: l.posterUrl ?? null }
+                    : Prisma.JsonNull,
             },
           });
           if (l.type === 'quiz' && l.quiz) {
