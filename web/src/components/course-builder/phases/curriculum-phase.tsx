@@ -21,11 +21,13 @@ import {
   Plus,
   Trash2,
   X as XIcon,
+  Layout as LayoutIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   useAddModule,
   useDeleteModule,
@@ -131,12 +133,21 @@ export function CurriculumPhase({ course }: { course: Course }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold tracking-tight">Curriculum</h2>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-          Create your course in sections, each focused on a single learning
-          objective. Then add content, practice activities, and assessments.
-        </p>
+      <div className="flex items-end justify-between gap-4 border-b border-[var(--color-border)] pb-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-[var(--color-foreground)]">
+            Curriculum
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+            Build your course in sections, each focused on a single learning
+            objective. Add lectures, activities, and assessments.
+          </p>
+        </div>
+        <span className="hidden shrink-0 rounded-full bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-medium text-[var(--color-primary)] sm:inline-flex">
+          {sortedModules.length} section{sortedModules.length === 1 ? "" : "s"}
+          {" • "}
+          {sortedModules.reduce((sum, m) => sum + m.lessons.length, 0)} lectures
+        </span>
       </div>
 
       {/* Module list — top-level DnD for module reordering */}
@@ -151,35 +162,18 @@ export function CurriculumPhase({ course }: { course: Course }) {
         >
           <div className="space-y-3">
             {sortedModules.length === 0 && (
-              <Card className="py-12 text-center border-dashed">
-                <div className="mb-3 flex justify-center">
-                  <div className="rounded-full bg-[var(--color-primary)]/10 p-3">
-                    <svg
-                      className="h-8 w-8 text-[var(--color-primary)]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 4.5c-1.5 0-2.8.5-3.8 1.4L12 9.8l3.8-4.4C15.2 5 13.9 4.5 12.5 4.5 8.4 4.5 5 7.7 5 12c0 1.2.3 2.3.7 3.3L12 22l6.3-6.7c.4-1 .7-2.1.7-3.3 0-4.3-3.4-7.5-7.5-7.5z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="mb-1.5 text-base font-semibold">
-                  Build your curriculum
-                </h3>
-                <p className="text-sm text-[var(--color-muted-foreground)] mb-4 max-w-xs mx-auto">
-                  Break your course into sections and lectures to help students
-                  navigate the content.
-                </p>
-                <Button size="sm" onClick={() => setShowSectionForm(true)}>
-                  <Plus className="h-4 w-4" />
-                  Create your first section
-                </Button>
+              <Card className="border-dashed py-10">
+                <EmptyState
+                  icon={LayoutIcon}
+                  title="Build your curriculum"
+                  description="Break your course into sections and lectures so learners can navigate the content."
+                  action={
+                    <Button size="sm" onClick={() => setShowSectionForm(true)}>
+                      <Plus className="h-4 w-4" aria-hidden />
+                      Create your first section
+                    </Button>
+                  }
+                />
               </Card>
             )}
             {sortedModules.map((mod) => (
@@ -339,13 +333,13 @@ export function CurriculumPhase({ course }: { course: Course }) {
       )}
 
       {/* Tips card */}
-      <Card className="bg-[linear-gradient(135deg,rgba(246,248,255,0.96),rgba(255,255,255,0.9))]">
-        <h3 className="mb-2 text-base font-semibold tracking-tight">
+      <Card className="bg-[linear-gradient(135deg,color-mix(in_oklch,var(--color-primary-soft)_55%,var(--color-card)),var(--color-card))]">
+        <h3 className="mb-2 text-base font-semibold tracking-tight text-[var(--color-foreground)]">
           Building Curriculum Tips
         </h3>
-        <ul className="space-y-1.5 text-sm text-[var(--color-muted-foreground)]">
-          <li>• <strong>Sections</strong> group related lectures together</li>
-          <li>• <strong>Lectures</strong> are individual content pieces (video, text, quiz…)</li>
+        <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+          <li>• <strong className="text-[var(--color-foreground)]">Sections</strong> group related lectures together</li>
+          <li>• <strong className="text-[var(--color-foreground)]">Lectures</strong> are individual content pieces (video, text, quiz…)</li>
           <li>• Drag the grip handle to reorder sections or lectures within a section</li>
           <li>• Click the checkbox to select multiple lectures for bulk actions</li>
         </ul>
