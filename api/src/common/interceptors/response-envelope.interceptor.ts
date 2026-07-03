@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common';
 import { map, Observable } from 'rxjs';
 
@@ -17,13 +18,19 @@ export class ResponseEnvelopeInterceptor implements NestInterceptor {
       .getRequest<Request & { url?: string }>();
 
     return next.handle().pipe(
-      map((data: unknown) => ({
-        data,
-        meta: {
-          path: request.url ?? null,
-          timestamp: new Date().toISOString(),
-        },
-      })),
+      map((data: unknown) => {
+        if (data instanceof StreamableFile) {
+          return data;
+        }
+
+        return {
+          data,
+          meta: {
+            path: request.url ?? null,
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }),
     );
   }
 }
