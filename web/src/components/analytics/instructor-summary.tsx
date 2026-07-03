@@ -6,6 +6,7 @@ import {
   useReportingEnrollments,
   useReportingCertificates,
 } from "@/lib/api/analytics";
+import { GraduationCap, CheckCircle2, TrendingUp, Award } from "lucide-react";
 import { Stat } from "@/components/ui/stat";
 import { Notice } from "@/components/ui/notice";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,21 +43,29 @@ export function InstructorSummary() {
         label="Total Enrollments"
         value={enrollments.data?.count ?? 0}
         hint="All-time enrollment count"
+        icon={GraduationCap}
+        tone="primary"
       />
       <Stat
         label="Course Completions"
         value={completions.data?.count ?? 0}
         hint="Courses fully completed"
+        icon={CheckCircle2}
+        tone="success"
       />
       <Stat
         label="Pass Rate"
         value={`${passRates.data?.passRate ?? 0}%`}
         hint={`${passRates.data?.passed ?? 0} passed / ${passRates.data?.attempted ?? 0} attempted`}
+        icon={TrendingUp}
+        tone="info"
       />
       <Stat
         label="Certificates Issued"
         value={certificates.data?.count ?? 0}
         hint="Total certificates earned"
+        icon={Award}
+        tone="accent"
       />
     </div>
   );
