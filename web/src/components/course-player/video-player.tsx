@@ -18,16 +18,28 @@ export function VideoPlayer({
   videoId,
   posterUrl,
   onComplete,
+  captionsUrl,
 }: {
   videoId: string;
   posterUrl?: string | null;
   // Fired once when the learner crosses the completion threshold.
   onComplete?: () => void;
+  // Optional WebVTT track. When provided, the CC toggle appears.
+  captionsUrl?: string | null;
 }) {
   const { data, isLoading, error } = useVideoStreamUrl(videoId);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [captionsOn, setCaptionsOn] = useState(false);
+
+  // Sync captions visibility with the underlying TextTrack.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !captionsUrl) return;
+    const track = video.textTracks[0];
+    if (track) track.mode = captionsOn ? "showing" : "hidden";
+  }, [captionsOn, captionsUrl]);
 
   // Ensures the completion event only fires a single time per video.
   const firedRef = useRef(false);
@@ -139,9 +151,19 @@ export function VideoPlayer({
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
-      />
+      >
+        {captionsUrl && (
+          <track
+            kind="captions"
+            srcLang="en"
+            label="English"
+            src={captionsUrl}
+            default={captionsOn}
+          />
+        )}
+      </video>
       <div className="flex items-center justify-between gap-3 text-xs text-[var(--color-muted-foreground)]">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <label htmlFor="video-speed" className="font-medium">Speed</label>
           <select
             id="video-speed"
@@ -153,6 +175,21 @@ export function VideoPlayer({
               <option key={s} value={s}>{s}×</option>
             ))}
           </select>
+          {captionsUrl && (
+            <button
+              type="button"
+              onClick={() => setCaptionsOn((v) => !v)}
+              aria-pressed={captionsOn}
+              className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
+                captionsOn
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              }`}
+              title={captionsOn ? "Hide captions" : "Show captions"}
+            >
+              CC
+            </button>
+          )}
         </div>
         <span>Link expires {new Date(data.expiresAt).toLocaleTimeString()}</span>
       </div>
