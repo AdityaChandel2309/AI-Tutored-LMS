@@ -46,6 +46,29 @@ All demo users share the password **`Admin@1234`**.
 | `instructor@lms.dev`      | instructor, learner            |
 | `learner@lms.dev`         | learner                        |
 
+## Load rich demo data (recommended)
+
+After seeding users, populate the tenant with realistic per-role content so
+every feature shows real courses, enrollments, certificates, notifications,
+projects and knowledge documents on first login:
+
+```bash
+cd api
+npm run seed:demo            # idempotent — safe to re-run
+# npm run seed:demo -- --reset   # wipe demo courses/projects/docs first, then reseed
+```
+
+What each demo login will see afterwards:
+
+- **learner@lms.dev** — 5 enrollments (2 completed with issued certificates, 2 in-progress, 1 not started), quiz attempts, and 4 notifications.
+- **instructor@lms.dev** — 5 authored courses across categories, plus 1 completed enrollment and pending review notifications.
+- **super.admin@lms.dev** — 2 authored courses, 4 synthetic direct reports with varied progress (drives team analytics), and owns the 3 demo projects.
+- **admin@lms.dev** — populated platform-wide analytics: 7 published courses, ~20 enrollments, 6 certificates, 4 knowledge documents, audit log entries.
+
+Optional: run `npm run backfill:document-embeddings` afterwards to give the
+seeded knowledge documents real vector embeddings so the AI Knowledge
+Assistant returns citations from them.
+
 ## If sign-in still fails locally
 
 1. **`Invalid username or password`** → the user was not seeded. Re-run step 5.

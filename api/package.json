@@ -24,6 +24,7 @@
     "test:live": "node -r ts-node/register -r tsconfig-paths/register test/live-auth.acceptance.ts",
     "validate:seed": "ts-node -r tsconfig-paths/register src/scripts/seed-validation.ts",
     "seed:demo-courses": "ts-node -r tsconfig-paths/register src/scripts/seed-demo-courses.ts",
+    "seed:demo": "ts-node -r tsconfig-paths/register src/scripts/seed-demo-full.ts",
     "backfill:enrollment-progress": "ts-node -r tsconfig-paths/register src/scripts/backfill-enrollment-progress.ts",
     "backfill:document-embeddings": "ts-node -r tsconfig-paths/register src/scripts/backfill-document-embeddings.ts",
     "validate:deploy": "ts-node -r tsconfig-paths/register ../scripts/validate-deployment.ts",
