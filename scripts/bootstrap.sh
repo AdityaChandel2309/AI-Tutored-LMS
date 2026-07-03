@@ -7,9 +7,21 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR/api"
 
 RESET_FLAG=""
-if [[ "${1:-}" == "--reset" ]]; then
-  RESET_FLAG="--reset"
-  echo "▶ Reset mode: existing demo rows will be cleared before reseeding."
+AUTO=false
+for arg in "$@"; do
+  case "$arg" in
+    --reset) RESET_FLAG="--reset"; echo "▶ Reset mode: existing demo rows will be cleared before reseeding." ;;
+    --if-missing) AUTO=true ;;
+  esac
+done
+
+if [[ "$AUTO" == "true" ]]; then
+  echo "▶ Checking whether demo data is already seeded..."
+  if npx ts-node -r tsconfig-paths/register src/scripts/check-demo-seeded.ts; then
+    echo "✅ Demo data already present — skipping bootstrap."
+    exit 0
+  fi
+  echo "▶ Demo data missing — running full bootstrap."
 fi
 
 run() {

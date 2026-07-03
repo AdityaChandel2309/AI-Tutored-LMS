@@ -10,6 +10,8 @@
     "dev": "turbo run dev --filter=web --",
     "bootstrap": "bash scripts/bootstrap.sh",
     "bootstrap:reset": "bash scripts/bootstrap.sh --reset",
+    "bootstrap:auto": "bash scripts/bootstrap.sh --if-missing",
+    "dev:auto": "npm run bootstrap:auto && npm run dev",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "clean": "turbo run clean"
