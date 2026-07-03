@@ -648,3 +648,24 @@ model ScormRuntimeData {
   @@unique([packageId, enrollmentId])
   @@index([tenantId])
 }
+
+// ─── Lesson Downloadable Resources ─────────
+
+model LessonResource {
+  id         String   @id @default(uuid())
+  tenantId   String
+  lessonId   String
+  label      String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int?
+  objectKey  String
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  uploader User   @relation("LessonResourceUploader", fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, lessonId])
+}
