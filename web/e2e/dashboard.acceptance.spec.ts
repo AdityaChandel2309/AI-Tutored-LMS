@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { ensureUserSession } from "./support/keycloak";
 
 test.describe.configure({ mode: "serial" });
@@ -6,7 +6,7 @@ test.describe.configure({ mode: "serial" });
 const appUrl = "http://127.0.0.1:3001";
 
 async function seedSession(
-  page: Parameters<typeof test>[0]["page"],
+  page: Page,
   input: {
     email: string;
     password: string;
