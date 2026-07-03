@@ -132,6 +132,7 @@ model Lesson {
   videos    Video[]
   scormPackages ScormPackage[]
   assessment Assessment?
+  resources LessonResource[]
 
   @@unique([moduleId, order])
 }
