@@ -38,6 +38,19 @@ export class StorageService {
       secretAccessKey: getStorageSecretKey(),
     },
   });
+  // Separate client used ONLY for presigning. It's configured with the
+  // browser-facing endpoint so the SigV4 signature is computed against the
+  // public Host header (SigV4 signs Host — rewriting it after signing
+  // breaks the signature with SignatureDoesNotMatch).
+  private readonly presignClient = new S3Client({
+    region: getStorageRegion(),
+    endpoint: this.publicBaseUrl,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: getStorageAccessKey(),
+      secretAccessKey: getStorageSecretKey(),
+    },
+  });
   private bucketReadyMap = new Map<string, Promise<void>>();
 
   // ── Avatar uploads (existing) ─────────────
@@ -82,10 +95,9 @@ export class StorageService {
       ContentType: input.contentType,
     });
 
-    const signed = await getSignedUrl(this.client, command, {
+    return getSignedUrl(this.presignClient, command, {
       expiresIn: input.expiresInSeconds,
     });
-    return this.rewriteToPublicHost(signed);
   }
 
   // ── Presigned download URL ────────────────
@@ -102,10 +114,9 @@ export class StorageService {
       Key: input.objectKey,
     });
 
-    const signed = await getSignedUrl(this.client, command, {
+    return getSignedUrl(this.presignClient, command, {
       expiresIn: input.expiresInSeconds,
     });
-    return this.rewriteToPublicHost(signed);
   }
 
   // ── Object verification ───────────────────
@@ -249,22 +260,4 @@ export class StorageService {
     }
   }
 
-  // Presigned URLs are generated against the internal S3 endpoint
-  // (e.g. http://minio:9000 inside docker). Browsers can't resolve that host,
-  // so we swap the origin to the publicly-reachable base URL while keeping
-  // the AWS SigV4 signature intact (signature covers path/query, not host).
-  private rewriteToPublicHost(signedUrl: string): string {
-    try {
-      if (!this.publicBaseUrl || this.publicBaseUrl === this.endpoint) {
-        return signedUrl;
-      }
-      const signed = new URL(signedUrl);
-      const publicBase = new URL(this.publicBaseUrl);
-      signed.protocol = publicBase.protocol;
-      signed.host = publicBase.host;
-      return signed.toString();
-    } catch {
-      return signedUrl;
-    }
-  }
 }
