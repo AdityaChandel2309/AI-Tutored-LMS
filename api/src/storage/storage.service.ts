@@ -82,9 +82,10 @@ export class StorageService {
       ContentType: input.contentType,
     });
 
-    return getSignedUrl(this.client, command, {
+    const signed = await getSignedUrl(this.client, command, {
       expiresIn: input.expiresInSeconds,
     });
+    return this.rewriteToPublicHost(signed);
   }
 
   // ── Presigned download URL ────────────────
@@ -101,9 +102,10 @@ export class StorageService {
       Key: input.objectKey,
     });
 
-    return getSignedUrl(this.client, command, {
+    const signed = await getSignedUrl(this.client, command, {
       expiresIn: input.expiresInSeconds,
     });
+    return this.rewriteToPublicHost(signed);
   }
 
   // ── Object verification ───────────────────
@@ -175,6 +177,7 @@ export class StorageService {
   // ── Internal helpers ──────────────────────
 
   private async ensureBucket(bucketName: string) {
+    // no-op guard handled below
     if (!this.bucketReadyMap.has(bucketName)) {
       this.bucketReadyMap.set(
         bucketName,
@@ -243,6 +246,25 @@ export class StorageService {
       case 'image/jpeg':
       default:
         return '.jpg';
+    }
+  }
+
+  // Presigned URLs are generated against the internal S3 endpoint
+  // (e.g. http://minio:9000 inside docker). Browsers can't resolve that host,
+  // so we swap the origin to the publicly-reachable base URL while keeping
+  // the AWS SigV4 signature intact (signature covers path/query, not host).
+  private rewriteToPublicHost(signedUrl: string): string {
+    try {
+      if (!this.publicBaseUrl || this.publicBaseUrl === this.endpoint) {
+        return signedUrl;
+      }
+      const signed = new URL(signedUrl);
+      const publicBase = new URL(this.publicBaseUrl);
+      signed.protocol = publicBase.protocol;
+      signed.host = publicBase.host;
+      return signed.toString();
+    } catch {
+      return signedUrl;
     }
   }
 }
