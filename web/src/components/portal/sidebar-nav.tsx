@@ -63,7 +63,19 @@ export function SidebarNav({ roles, collapsed, onToggle, onNavigate }: { roles: 
   return (
     <aside className={`${collapsed ? "w-16" : "w-56"} border-r bg-[var(--color-card)] h-full flex flex-col transition-all duration-200`}>
       <div className="p-3 border-b flex items-center justify-between">
-        {!collapsed && <span className="font-bold text-sm text-[var(--color-foreground)]">{BRAND_NAME}</span>}
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            aria-hidden
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[calc(var(--radius)-8px)] bg-[linear-gradient(135deg,var(--color-primary),color-mix(in_oklch,var(--color-primary)_60%,var(--color-accent)))] text-[11px] font-bold text-[var(--color-primary-foreground)] shadow-[0_6px_16px_-6px_var(--color-primary)]"
+          >
+            {BRAND_NAME.slice(0, 2).toUpperCase()}
+          </span>
+          {!collapsed && (
+            <span className="truncate font-semibold text-sm tracking-tight text-[var(--color-foreground)]">
+              {BRAND_NAME}
+            </span>
+          )}
+        </div>
         <button
           onClick={onToggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -96,8 +108,14 @@ export function SidebarNav({ roles, collapsed, onToggle, onNavigate }: { roles: 
                   onClick={onNavigate}
                   aria-label={item.label}
                   title={item.label}
-                  className={`flex items-center gap-2 mx-2 px-2 py-1.5 text-sm rounded-[calc(var(--radius)-8px)] ${collapsed ? "justify-center" : ""} ${FOCUS_RING} ${active ? "bg-[var(--color-primary-soft)] text-[var(--color-primary)] font-medium" : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"}`}
+                  className={`group relative flex items-center gap-2 mx-2 px-2 py-1.5 text-sm rounded-[calc(var(--radius)-8px)] transition-colors duration-150 ${collapsed ? "justify-center" : ""} ${FOCUS_RING} ${active ? "bg-[var(--color-primary-soft)] text-[var(--color-primary)] font-medium" : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"}`}
                 >
+                  {active && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-x-1 -translate-y-1/2 rounded-full bg-[var(--color-primary)]"
+                    />
+                  )}
                   <Icon aria-hidden className="h-4 w-4 shrink-0" />
                   <span className={collapsed ? "sr-only" : ""}>{item.label}</span>
                 </Link>
