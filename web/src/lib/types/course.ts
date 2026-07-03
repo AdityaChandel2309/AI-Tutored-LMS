@@ -13,7 +13,11 @@ export type Lesson = {
 };
 
 export type VideoLessonContent = {
-  videoId: string;
+  videoId?: string;
+  // Optional public URL for demo/seed content that isn't backed by an
+  // uploaded Video row in MinIO. When set (and videoId is absent), the
+  // player renders the URL directly.
+  externalUrl?: string | null;
   posterUrl?: string | null;
 };
 
