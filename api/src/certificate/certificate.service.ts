@@ -238,6 +238,42 @@ export class CertificateService {
     });
   }
 
+  // ─── Public verification ────────────────────
+  // Returns a minimal, non-sensitive view of an issued certificate so anyone
+  // holding a verification code can confirm authenticity. No tenant scope on
+  // purpose (codes are globally unique via the `@unique` constraint), and we
+  // deliberately omit `userId`, `enrollmentId`, and any object storage keys.
+  async verifyByNumber(certificateNumber: string) {
+    const normalized = certificateNumber.trim();
+    if (!normalized) throw new NotFoundException('Certificate not found');
+
+    const cert = await this.prisma.issuedCertificate.findUnique({
+      where: { certificateNumber: normalized },
+      select: {
+        certificateNumber: true,
+        learnerName: true,
+        courseTitle: true,
+        completionDate: true,
+        issuedAt: true,
+        scoreSummary: true,
+        template: { select: { title: true } },
+        tenant: { select: { name: true } },
+      },
+    });
+    if (!cert) throw new NotFoundException('Certificate not found');
+    return {
+      certificateNumber: cert.certificateNumber,
+      learnerName: cert.learnerName,
+      courseTitle: cert.courseTitle,
+      completionDate: cert.completionDate,
+      issuedAt: cert.issuedAt,
+      scoreSummary: cert.scoreSummary,
+      templateTitle: cert.template?.title ?? null,
+      organization: cert.tenant?.name ?? null,
+      valid: true,
+    };
+  }
+
   async getCertificatePdfUrl(input: {
     tenantId: string | null;
     authUserId: string;
