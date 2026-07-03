@@ -270,6 +270,30 @@ export class KnowledgeService {
     });
     if (!doc) throw new NotFoundException('Document not found');
 
+    // Legacy / seeded documents may reference an object that was never uploaded
+    // to storage. Materialize a plain-text fallback from the indexed chunks so
+    // learners always get a real file back.
+    const head = await this.storage.headObject({
+      bucket: 'knowledge',
+      objectKey: doc.fileObjectKey,
+    });
+    if (!head.exists) {
+      const chunks = await this.prisma.documentChunk.findMany({
+        where: { documentId: doc.id },
+        orderBy: { chunkIndex: 'asc' },
+        select: { chunkText: true },
+      });
+      const body =
+        chunks.map((c) => c.chunkText).join('\n\n').trim() ||
+        `${doc.title}\n\n${doc.description ?? ''}`;
+      await this.storage.uploadBuffer({
+        bucket: 'knowledge',
+        objectKey: doc.fileObjectKey,
+        body: Buffer.from(body, 'utf8'),
+        contentType: doc.mimeType || 'text/plain; charset=utf-8',
+      });
+    }
+
     const url = await this.storage.getPresignedGetUrl({
       bucket: 'knowledge',
       objectKey: doc.fileObjectKey,
