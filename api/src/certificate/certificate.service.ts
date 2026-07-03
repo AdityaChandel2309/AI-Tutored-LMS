@@ -384,10 +384,16 @@ export class CertificateService {
     }
 
     let objectKey = cert.pdfObjectKey;
+    const existingObject = objectKey
+      ? await this.storage.headObject({
+          bucket: 'lms-certificates',
+          objectKey,
+        })
+      : null;
 
     // Lazily materialize the PDF for legacy / seeded certificates that were
     // created without one. Idempotent: subsequent calls reuse the stored key.
-    if (!objectKey) {
+    if (!objectKey || !existingObject?.exists) {
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: tenantId },
       });
