@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
+import { Skeleton } from "@/components/ui/skeleton";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { apiFetch, apiPatch } from "@/lib/api/client";
 import { PlanPhase } from "./phases/plan-phase";
@@ -133,11 +134,21 @@ export function CourseBuilderWizard({ courseId }: { courseId: string }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen px-6 py-10">
-        <div className="mx-auto max-w-5xl">
-          <Card className="p-8">
-            <Notice>Loading course…</Notice>
-          </Card>
+      <div className="min-h-screen flex">
+        <aside className="sticky top-0 h-screen w-60 flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-card)] p-5">
+          <Skeleton className="mb-6 h-8 w-full" />
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-11 w-full" />
+            ))}
+          </div>
+        </aside>
+        <div className="flex-1 px-8 py-8">
+          <Skeleton className="mb-6 h-8 w-64" />
+          <div className="mx-auto max-w-4xl space-y-4">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         </div>
       </div>
     );
@@ -251,6 +262,12 @@ export function CourseBuilderWizard({ courseId }: { courseId: string }) {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{c.title}</h1>
             <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+            {dirtyFields.size > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-accent)] bg-[var(--color-accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-accent)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                Unsaved changes
+              </span>
+            )}
           </div>
         </div>
 

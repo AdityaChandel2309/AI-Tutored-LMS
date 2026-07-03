@@ -70,6 +70,9 @@ export function PlayerSidebar({
           0,
         );
         const moduleDuration = formatDuration(moduleSeconds);
+        const modulePct = lessons.length
+          ? Math.round((completedCount / lessons.length) * 100)
+          : 0;
 
         return (
           <Card key={mod.id} className="overflow-hidden p-0">
@@ -82,6 +85,18 @@ export function PlayerSidebar({
                 {completedCount}/{lessons.length} completed
                 {moduleDuration ? ` • ${moduleDuration}` : ""}
               </p>
+              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
+                <div
+                  className="h-full rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width: `${modulePct}%`,
+                    background:
+                      modulePct === 100
+                        ? "var(--color-accent)"
+                        : "var(--color-primary)",
+                  }}
+                />
+              </div>
             </div>
 
             {/* Lessons */}
