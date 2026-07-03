@@ -58,6 +58,7 @@ model User {
   projectMemberships    ProjectMember[]
   uploadedDocuments     Document[]         @relation("DocumentUploader")
   uploadedDocVersions   DocumentVersion[]  @relation("DocVersionUploader")
+  uploadedLessonResources LessonResource[] @relation("LessonResourceUploader")
 
   @@index([tenantId])
 }
