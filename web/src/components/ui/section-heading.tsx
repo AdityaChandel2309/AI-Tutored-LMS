@@ -22,11 +22,11 @@ export function SectionHeading({
     >
       <div>
         {badge ? <div className="mb-3">{badge}</div> : null}
-        <h2 className="text-2xl font-semibold text-slate-950">
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">
           {title}
         </h2>
         {description ? (
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-muted-foreground)]">
             {description}
           </p>
         ) : null}
