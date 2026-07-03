@@ -49,6 +49,7 @@ export function QuizEditor({
   const [createTitle, setCreateTitle] = useState("");
   const [createPassingScore, setCreatePassingScore] = useState(70);
   const [createMaxAttempts, setCreateMaxAttempts] = useState<string>("");
+  const [createTimeLimitMin, setCreateTimeLimitMin] = useState<string>("");
 
   if (isLoading) {
     return <Notice>Loading assessment…</Notice>;
@@ -115,6 +116,18 @@ export function QuizEditor({
                   placeholder="Unlimited"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-[var(--color-muted-foreground)]">
+                  Time Limit (minutes, blank = untimed)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={createTimeLimitMin}
+                  onChange={(e) => setCreateTimeLimitMin(e.target.value)}
+                  placeholder="Untimed"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -127,6 +140,9 @@ export function QuizEditor({
                       passingScore: createPassingScore,
                       maxAttempts: createMaxAttempts
                         ? Number(createMaxAttempts)
+                        : undefined,
+                      timeLimitSec: createTimeLimitMin
+                        ? Number(createTimeLimitMin) * 60
                         : undefined,
                     },
                     { onSuccess: () => setShowCreate(false) },
