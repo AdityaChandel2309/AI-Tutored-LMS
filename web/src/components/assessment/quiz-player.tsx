@@ -271,8 +271,7 @@ function AttemptView({
   const autoSubmittedRef = useRef(false);
 
   const currentQuestion = questions[currentIdx];
-  const answeredCount = Object.keys(answers).length;
-  const allAnswered = answeredCount === questions.length;
+  const answeredCount = Object.values(answers).filter((v) => v && v.length > 0).length;
   const unansweredIndexes = questions
     .map((q, i) => ({ q, i }))
     .filter(({ q }) => !(answers[q.id] && answers[q.id].length > 0))
