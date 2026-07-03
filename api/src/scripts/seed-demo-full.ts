@@ -420,10 +420,11 @@ async function main() {
   try {
     console.log('▸ Rich demo seed starting…');
 
-    const tenant = await prisma.tenant.findUnique({ where: { subdomain: TENANT_SUBDOMAIN } });
-    if (!tenant) {
+    const tenantRow = await prisma.tenant.findUnique({ where: { subdomain: TENANT_SUBDOMAIN } });
+    if (!tenantRow) {
       throw new Error(`Tenant "${TENANT_SUBDOMAIN}" not found. Run seed-tenant.ts first.`);
     }
+    const tenant = tenantRow;
 
     // Resolve demo users by email; require the primary four.
     const users = await prisma.user.findMany({
