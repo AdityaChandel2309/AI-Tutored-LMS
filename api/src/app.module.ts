@@ -15,6 +15,7 @@ import { CourseModule } from './course/course.module';
 import { CategoryModule } from './category/category.module';
 import { CourseModuleModule } from './module/module.module';
 import { LessonModule } from './lesson/lesson.module';
+import { LessonResourceModule } from './lesson-resource/lesson-resource.module';
 import { ProgressModule } from './progress/progress.module';
 import { EventsModule } from './events/events.module';
 import { VideoModule } from './video/video.module';
@@ -57,6 +58,7 @@ import { MetricsMiddleware } from './common/middleware/metrics.middleware';
     CategoryModule,
     CourseModuleModule,
     LessonModule,
+    LessonResourceModule,
     ProgressModule,
     VideoModule,
     ScormModule,

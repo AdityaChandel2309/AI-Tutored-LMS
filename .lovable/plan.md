@@ -1,48 +1,53 @@
-# Fix sign-in issues
+# Level‑up: Lesson resources + video uploads
 
-## Root cause
+## What exists today
 
-Your project is a **Next.js (`web/`) + NestJS (`api/`) + Keycloak + Postgres** monorepo. Lovable's preview sandbox can only run a single Vite app on `localhost:8080` — it does **not** run:
+- **Video upload** — `VideoUpload` component + `/courses/:id/videos/upload-url`, `PATCH /videos/:id/confirm`, presigned MinIO PUT, thumbnail/duration extraction. It is already wired into `lecture-editor.tsx` for video lessons. Nothing new needed on the backend; just make sure the video lesson editor path is easy to reach from the curriculum builder.
+- **Downloadable resources** — `LectureResourcesMenu` → "Downloadable File" tab exists in the UI but the "Select File" button is a stub (`setSelectedFileName("sample-document.pdf")`). No backend, no real upload, no listing, no learner-side download.
 
-- `next start` (your web frontend on :3000)
-- the NestJS API (:4000)
-- Keycloak (:8080 in Docker)
-- Postgres
+## Goals
 
-So when you type a username/password in the preview, the login form POSTs to `/api/auth/login`, which tries to reach the NestJS API, which tries to reach Keycloak — none of which exist in this sandbox. That's why sign-in "has many issues" here. The form rendering works; the backend behind it is absent.
+1. Real upload of any file (PDF, ZIP, DOCX, images, etc.) from the instructor's local device, attached to a lesson as a downloadable resource — works for **all** lesson types (video, article, quiz, scorm), not just video.
+2. Verify the existing video-upload flow is discoverable and works end‑to‑end when a curriculum item is switched to type `video`.
 
-**The preview URL will never authenticate. This is a platform limit, not a bug in your code.** The only way to actually test sign-in is locally (or in a real deployment).
+## Scope
 
-## What I will do (once you switch to build mode)
+### Backend (`api/`)
 
-### 1. Get you signed in locally (primary fix)
+1. **Schema** — new `LessonResource` model + migration:
+   ```
+   id, tenantId, lessonId, label, fileName, mimeType,
+   sizeBytes, objectKey, uploadedBy, createdAt
+   ```
+   Index `(tenantId, lessonId)`. Cascade delete on lesson.
+2. **`LessonResourceModule`** (new):
+   - `POST /lessons/:id/resources/upload-url` → presigned PUT (bucket `lms-resources`, TTL 15 min, max 100 MB). Validates tenant + role (`admin`/`instructor`) + course ownership. Returns `{ resourceId, uploadUrl, objectKey, maxSizeBytes, expiresAt }`.
+   - `POST /lessons/:id/resources/confirm` → verifies object exists (`HeadObject`), persists `LessonResource` row.
+   - `GET  /lessons/:id/resources` → list (any authenticated user with course access; learners must be enrolled OR course must be published).
+   - `GET  /resources/:id/download` → presigned GET (TTL 1h). Enforces the same access rule as list.
+   - `DELETE /resources/:id` → soft‑delete (admin/instructor), also `deleteObject` from storage.
+3. **Runtime config** — add `RESOURCE_BUCKET`, `RESOURCE_UPLOAD_MAX_BYTES` env with sensible defaults in `runtime.ts`.
+4. **Reuse** existing `StorageService`, presign helpers, tenant middleware, and the enrolment check used by `VideoService.getStreamUrl`.
 
-Verify and, if needed, patch these so `npm run dev` produces a working login end-to-end:
+### Frontend (`web/`)
 
-- **`docker-compose.yml`** — confirm Postgres + Keycloak services start cleanly on the expected ports.
-- **`keycloak/realm-config.json`** — confirm the `lms-web` client, redirect URIs (`http://localhost:3001/callback`), and roles are imported on Keycloak boot.
-- **`api/.env`** vs **`api/.env.example`** — ensure `KEYCLOAK_BASE_URL`, `KEYCLOAK_INTERNAL_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`, `DATABASE_URL` match what docker-compose exposes.
-- **`web/.env`** vs **`web/.env.local.example`** — ensure `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_DEFAULT_TENANT_SUBDOMAIN`, and the backend URL used by `getBackendUrl()` are correct.
-- **Seed a working user** via `api/src/scripts/seed-users.ts` / `seed-tenant.ts` so you have credentials that actually exist in Keycloak + the tenant DB.
-- Write a short `LOCAL_SIGNIN.md` with the exact 4-command sequence: `docker compose up -d` → `prisma migrate deploy` → seed users → `npm run dev`, plus the demo credentials.
+1. **`web/src/lib/api/lesson-resources.ts`** — hooks: `useListResources(lessonId)`, `useRequestResourceUpload(lessonId)`, `useConfirmResourceUpload(lessonId)`, `useDeleteResource()`, `getResourceDownloadUrl(id)`.
+2. **Next.js API proxies** under `web/src/app/api/lessons/[id]/resources/...` and `web/src/app/api/resources/[id]/...` mirroring the existing video proxy pattern.
+3. **`ResourceUploader` component** (`web/src/components/course-editor/resource-upload.tsx`) — mirrors `VideoUpload`: dropzone, XHR presigned PUT with progress, label field, size/type validation, error `Notice`.
+4. **Replace the stub** in `lecture-sub-menus.tsx` "Downloadable File" tab with `<ResourceUploader lessonId={...} />` plus a live list of already-attached resources (name, size, delete button).
+5. **Learner view** — in `web/src/components/course-player/lesson-content.tsx`, render a "Resources" section under every lesson type showing each resource as a link that hits `/api/resources/:id/download` (opens the presigned URL in a new tab).
+6. **Video lesson quick check** — from the curriculum builder, when an item's content type is set to `video` via `LectureContentSelector`, ensure the existing `VideoUpload` surface in `lecture-editor.tsx` is reachable; add a small "Upload video" affordance in `sortable-module-item.tsx` for video-type lessons that opens the lecture editor. No new backend.
 
-### 2. Harden the two most common real sign-in failure modes
+### Out of scope (this pass)
 
-From reading `api/src/auth/*` and `web/src/app/api/auth/login/route.ts`:
+- Library picker tab, external URL tab (already wired), source-code tab (already wired).
+- Per-resource ordering / preview thumbnails.
+- Anti-virus scanning, watermarking, DRM.
+- Bulk multi-file drag & drop (single-file per pick for v1).
 
-- **JWT issuer mismatch** — `jwt.strategy.ts` accepts both `KEYCLOAK_BASE_URL` and `KEYCLOAK_INTERNAL_URL` issuers. Verify both env vars are set in `api/.env` (missing `KEYCLOAK_INTERNAL_URL` silently breaks direct-grant login).
-- **Tenant cookie** — `web/src/app/api/auth/login/route.ts` pins `NEXT_PUBLIC_DEFAULT_TENANT_SUBDOMAIN` (defaults to `"default"`). Confirm a tenant with subdomain `default` is seeded, otherwise every login 401s downstream on `/api/me`.
+## Verification
 
-### 3. Tell you clearly what to do about the preview
-
-Add a small banner on the `/login` page **only when running under a `*.lovable.app` host** that says "This preview cannot authenticate — run locally to sign in." So you're not chasing a phantom bug next time you open the preview.
-
-## What I will NOT do
-
-- Try to make Keycloak run inside the Lovable sandbox (not possible).
-- Replace Keycloak with Lovable Cloud / Supabase auth (that's a rewrite, not a fix; only do it if you explicitly want to abandon Keycloak).
-- Touch business logic — this is auth/config only.
-
-## Deliverable
-
-After this: `docker compose up -d && npm run dev` gives you a working login at `http://localhost:3000/login` with seeded credentials, and the preview shows a clear "run locally" notice instead of appearing broken.
+- `curl` presigned PUT with a small PDF, then `POST /confirm` → row exists, `GET /resources` lists it, `GET /download` streams the file.
+- In the browser, upload a PDF from the curriculum builder → appears in the list; open the learner course player → download link works.
+- Regression: existing video upload still works from a video lesson.
+- `api` build + Prisma migration + `web` typecheck all clean.

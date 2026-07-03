@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { apiPatch } from "@/lib/api/client";
 import { RichTextEditor } from "@/components/course-builder/rich-text-editor";
 import type { Lesson } from "@/components/course-builder/sortable-module-item";
+import { ResourceUploader } from "@/components/course-editor/resource-upload";
 
 // ─── Types ───────────────────────────────────────────
 
@@ -104,7 +105,6 @@ export function LectureResourcesMenu({
   const [sourceCode, setSourceCode] = useState(
     (lesson.content?.sourceCode as string) ?? "",
   );
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const tabContainerRef = useRef<HTMLDivElement>(null);
 
   // Detect tab overflow
@@ -182,31 +182,7 @@ export function LectureResourcesMenu({
       {/* Tab content */}
       <div className="mt-4">
         {activeTab === "downloadable" && (
-          <div>
-            <div className="rounded-lg border border-[var(--color-border)] p-4">
-              <div className="mb-2 flex items-center gap-3">
-                <Input
-                  value={selectedFileName ?? "No file selected"}
-                  readOnly
-                  className="flex-1 text-sm text-[var(--color-muted-foreground)]"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    // File picker would integrate with your storage API
-                    setSelectedFileName("sample-document.pdf");
-                  }}
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  Select File
-                </Button>
-              </div>
-              <p className="text-[10px] text-[var(--color-muted-foreground)]">
-                Upload a PDF, ZIP, or any downloadable resource for students.
-              </p>
-            </div>
-          </div>
+          <ResourceUploader lessonId={lesson.id} />
         )}
 
         {activeTab === "library" && (
