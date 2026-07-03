@@ -11,6 +11,7 @@ import {
   apiPost,
   apiPatch,
 } from "@/lib/api/client";
+import { getApiUrl } from "@/lib/api";
 import type {
   CertificateTemplate,
   IssuedCertificate,
@@ -108,7 +109,10 @@ export function useCertificatePdf(certId: string | null) {
   return useQuery<CertificatePdfResponse>({
     queryKey: certificateKeys.pdf(certId ?? "none"),
     queryFn: () =>
-      apiGet(`/certificates/${certId}/pdf`),
+      Promise.resolve({
+        url: getApiUrl(`/certificates/${certId}/download`),
+        certificateNumber: "",
+      }),
     enabled: Boolean(certId),
   });
 }
