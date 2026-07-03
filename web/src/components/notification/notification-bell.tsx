@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import {
+  Bell,
+  BookOpen,
+  CheckCircle2,
+  Award,
+  GraduationCap,
+  Megaphone,
+  type LucideIcon,
+} from "lucide-react";
 import {
   useNotifications,
   useUnreadCount,
@@ -8,12 +18,13 @@ import {
   useMarkAllAsRead,
 } from "@/lib/api/notifications";
 
-const TYPE_ICONS: Record<string, string> = {
-  "enrollment.created": "📚",
-  "assessment.passed": "✅",
-  "certificate.issued": "🏅",
-  "course.completed": "🎓",
+const TYPE_META: Record<string, { icon: LucideIcon; tone: string }> = {
+  "enrollment.created": { icon: BookOpen, tone: "text-[var(--color-primary)] bg-[var(--color-primary-soft)]" },
+  "assessment.passed": { icon: CheckCircle2, tone: "text-[var(--color-success)] bg-[color:color-mix(in_oklch,var(--color-success)_15%,transparent)]" },
+  "certificate.issued": { icon: Award, tone: "text-[var(--color-accent)] bg-[var(--color-accent-soft)]" },
+  "course.completed": { icon: GraduationCap, tone: "text-[var(--color-accent)] bg-[var(--color-accent-soft)]" },
 };
+const DEFAULT_META = { icon: Megaphone, tone: "text-[var(--color-muted-foreground)] bg-[var(--color-muted)]" };
 
 function timeAgo(dateStr: string) {
   const seconds = Math.floor(
@@ -55,12 +66,12 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-lg transition-colors duration-200 hover:bg-[var(--color-muted)]"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] transition-colors duration-200 hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
       >
-        🔔
+        <Bell className="h-4 w-4" aria-hidden />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[10px] font-bold text-white ring-2 ring-[var(--color-card)]">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -93,7 +104,10 @@ export function NotificationBell() {
                 No notifications yet
               </div>
             ) : (
-              notifications.map((n) => (
+              notifications.map((n) => {
+                const meta = TYPE_META[n.type] ?? DEFAULT_META;
+                const Icon = meta.icon;
+                return (
                 <button
                   key={n.id}
                   type="button"
@@ -106,8 +120,8 @@ export function NotificationBell() {
                       : ""
                   }`}
                 >
-                  <span className="mt-0.5 text-base">
-                    {TYPE_ICONS[n.type] ?? "📣"}
+                  <span className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${meta.tone}`}>
+                    <Icon className="h-4 w-4" aria-hidden />
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium leading-tight text-[var(--color-foreground)]">
@@ -124,9 +138,18 @@ export function NotificationBell() {
                     <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[var(--color-primary)]" />
                   )}
                 </button>
-              ))
+                );
+              })
             )}
           </div>
+          {/* Footer */}
+          <Link
+            href="/dashboard/notifications"
+            onClick={() => setOpen(false)}
+            className="block border-t border-[var(--color-border)] bg-[var(--color-card-muted)] px-4 py-2.5 text-center text-xs font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-muted)]"
+          >
+            View all notifications
+          </Link>
         </div>
       )}
     </div>
