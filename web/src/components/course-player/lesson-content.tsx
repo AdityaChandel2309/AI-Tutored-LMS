@@ -119,6 +119,14 @@ export function LessonContent({
               videoId={videoContent.videoId}
               posterUrl={videoContent.posterUrl}
             />
+          ) : videoContent?.externalUrl ? (
+            <video
+              controls
+              playsInline
+              className="w-full rounded-xl border border-[var(--color-border)] bg-black"
+              src={videoContent.externalUrl}
+              poster={videoContent.posterUrl ?? undefined}
+            />
           ) : (
             <Notice>No video attached yet.</Notice>
           )
@@ -236,12 +244,15 @@ function parseVideoContent(
   }
 
   const value = content as Record<string, unknown>;
-  if (typeof value.videoId !== "string") {
+  const videoId = typeof value.videoId === "string" ? value.videoId : undefined;
+  const externalUrl =
+    typeof value.externalUrl === "string" ? value.externalUrl : null;
+  if (!videoId && !externalUrl) {
     return null;
   }
-
   return {
-    videoId: value.videoId,
+    videoId,
+    externalUrl,
     posterUrl:
       typeof value.posterUrl === "string" ? value.posterUrl : null,
   };
