@@ -139,7 +139,7 @@ export default function NotificationsPage() {
                     onClick={() => {
                       if (!n.isRead) markRead.mutate(n.id);
                     }}
-                    className={`group flex w-full items-start gap-4 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition-all duration-150 hover:border-[color:color-mix(in_oklch,var(--color-primary)_45%,var(--color-border))] hover:shadow-[var(--shadow-elevation-low)] ${
+                    className={`group flex w-full items-start gap-4 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition-all duration-150 hover:border-[color:color-mix(in_oklch,var(--color-primary)_45%,var(--color-border))] hover:shadow-[var(--shadow-lift)] ${
                       !n.isRead ? "bg-[var(--color-primary-soft)]" : ""
                     }`}
                   >
