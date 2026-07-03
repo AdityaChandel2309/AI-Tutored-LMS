@@ -15,6 +15,7 @@ import { AdminPanel } from "@/components/admin-panel";
 import { ProfilePanel } from "@/components/profile-panel";
 import { NotificationBell } from "@/components/notification/notification-bell";
 import { DashboardSummaryCards } from "@/components/analytics/dashboard-summary-cards";
+import { ContinueLearning } from "@/components/dashboard/continue-learning";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -103,6 +104,7 @@ export default function DashboardPage() {
           {(user) => {
             const isAdmin = user.roles.includes("admin");
             const isInstructor = user.roles.includes("instructor");
+            const isLearner = user.roles.includes("learner") || (!isAdmin && !isInstructor);
 
             return (
               <>
@@ -163,6 +165,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </Card>
+
+                {isLearner && <ContinueLearning />}
 
                 <ProfilePanel
                   user={user}
