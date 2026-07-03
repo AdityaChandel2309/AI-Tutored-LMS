@@ -1,5 +1,5 @@
 import { expect, request as playwrightRequest, test } from "@playwright/test";
-import type { APIRequestContext, APIResponse } from "@playwright/test";
+import type { APIRequestContext, APIResponse, Page } from "@playwright/test";
 import { ensureUserSession } from "./support/keycloak";
 
 test.describe.configure({ mode: "serial" });
@@ -42,7 +42,7 @@ async function assertOk(response: APIResponse, label: string) {
 }
 
 async function seedSession(
-  page: Parameters<typeof test>[0]["page"],
+  page: Page,
   input: {
     email: string;
     password: string;
