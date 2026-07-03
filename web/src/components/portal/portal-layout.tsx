@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
+import { NotificationBell } from "@/components/notification/notification-bell";
 import { useMe } from "@/lib/api/me";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -49,6 +50,9 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-semibold tracking-tight text-[var(--color-foreground)]">
               {BRAND_NAME}
             </span>
+          </div>
+          <div className="ml-auto">
+            <NotificationBell />
           </div>
         </header>
 
