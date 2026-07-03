@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/courses";
 import { useMyCertificates } from "@/lib/api/certificates";
 import { apiGet } from "@/lib/api/client";
+import { getApiUrl } from "@/lib/api";
 import type { Lesson, CertificatePdfResponse } from "@/lib/types/course";
 
 // ─── Resume state persistence ──────────────
@@ -86,10 +87,7 @@ function CertificateBadge({ courseId }: { courseId: string }) {
   async function downloadPdf() {
     if (!cert) return;
     try {
-      const { url } = await apiGet<CertificatePdfResponse>(
-        `/certificates/${cert.id}/pdf`,
-      );
-      window.open(url, "_blank");
+      window.open(getApiUrl(`/certificates/${cert.id}/download`), "_blank");
     } catch {
       // silent fail
     }

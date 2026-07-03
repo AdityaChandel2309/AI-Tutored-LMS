@@ -3,6 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { getApiUrl } from "@/lib/api";
 import { apiDelete, apiGet, apiPost } from "@/lib/api/client";
 
 export interface LessonResource {
@@ -79,5 +80,5 @@ export async function fetchResourceDownloadUrl(id: string): Promise<{
   url: string;
   fileName: string;
 }> {
-  return apiGet(`/resources/${id}/download`);
+  return { url: getApiUrl(`/resources/${id}/file`), fileName: "resource" };
 }
