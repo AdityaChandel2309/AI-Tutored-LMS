@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Send } from "lucide-react";
+import { Check, Copy, FileText, Send } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,17 @@ export function ChatPanel({ messages, onSend, loading, placeholder }: {
   placeholder?: string;
 }) {
   const [input, setInput] = useState("");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  async function copyMessage(text: string, idx: number) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx((v) => (v === idx ? null : v)), 1500);
+    } catch {
+      // ignore
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,13 +44,28 @@ export function ChatPanel({ messages, onSend, loading, placeholder }: {
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[80%] rounded-[var(--radius)] px-3 py-2 text-sm ${
+              className={`group relative max-w-[80%] rounded-[var(--radius)] px-3 py-2 text-sm ${
                 msg.role === "user"
                   ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
                   : "bg-[var(--color-muted)] text-[var(--color-foreground)]"
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === "assistant" && (
+                <button
+                  type="button"
+                  onClick={() => copyMessage(msg.content, i)}
+                  className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] opacity-0 shadow-[var(--shadow-soft)] transition-opacity hover:text-[var(--color-primary)] group-hover:opacity-100 focus-visible:opacity-100"
+                  aria-label={copiedIdx === i ? "Copied" : "Copy answer"}
+                  title={copiedIdx === i ? "Copied" : "Copy answer"}
+                >
+                  {copiedIdx === i ? (
+                    <Check className="h-3 w-3" aria-hidden />
+                  ) : (
+                    <Copy className="h-3 w-3" aria-hidden />
+                  )}
+                </button>
+              )}
               {msg.sources && msg.sources.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-[var(--color-border)]">
                   <p className="text-xs font-medium text-[var(--color-muted-foreground)] mb-1">Sources:</p>
