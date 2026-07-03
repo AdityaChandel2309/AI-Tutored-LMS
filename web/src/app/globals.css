@@ -41,8 +41,23 @@
   --color-danger: oklch(61% 0.2 25);
   --color-danger-soft: oklch(96% 0.03 25);
 
+  /* Status */
+  --color-success: oklch(62% 0.15 155);
+  --color-success-soft: oklch(95% 0.04 155);
+  --color-warning: oklch(75% 0.14 78);
+  --color-warning-soft: oklch(96% 0.04 78);
+  --color-info: oklch(65% 0.13 235);
+  --color-info-soft: oklch(96% 0.03 235);
+
+  /* Elevation */
+  --shadow-soft: 0 1px 2px oklch(22% 0.02 255 / 0.04),
+    0 4px 12px oklch(22% 0.02 255 / 0.05);
+  --shadow-lift: 0 4px 8px oklch(22% 0.02 255 / 0.05),
+    0 16px 32px -8px oklch(22% 0.02 255 / 0.12);
+
   /* Radius */
   --radius: 18px;
+  --radius-sm: 10px;
 }
 
 html,
@@ -101,4 +116,24 @@ code {
     "IBM Plex Mono",
     "SFMono-Regular",
     monospace;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--color-muted) 85%, transparent) 0%,
+    color-mix(in oklch, var(--color-muted) 55%, white) 50%,
+    color-mix(in oklch, var(--color-muted) 85%, transparent) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
 }
