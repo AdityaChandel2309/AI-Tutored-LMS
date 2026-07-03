@@ -214,3 +214,21 @@ export function getScormUploadMaxBytes() {
 export function getScormPresignUploadTtlSec() {
   return Number(getEnv('SCORM_PRESIGN_UPLOAD_TTL_SEC', '900'));
 }
+
+// ── Lesson resource pipeline config ────────
+
+export function getResourceBucket() {
+  return getEnv('RESOURCE_BUCKET', 'lms-resources')!;
+}
+
+export function getResourceUploadMaxBytes() {
+  return Number(getEnv('RESOURCE_UPLOAD_MAX_BYTES', '104857600')); // 100 MB
+}
+
+export function getResourcePresignUploadTtlSec() {
+  return Number(getEnv('RESOURCE_PRESIGN_UPLOAD_TTL_SEC', '900'));
+}
+
+export function getResourcePresignDownloadTtlSec() {
+  return Number(getEnv('RESOURCE_PRESIGN_DOWNLOAD_TTL_SEC', '3600'));
+}
