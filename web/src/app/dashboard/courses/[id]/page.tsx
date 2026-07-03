@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressBar } from "@/components/progress/progress-bar";
 import { PlayerSidebar } from "@/components/course-player/player-sidebar";
 import { CourseTutorPanel } from "@/components/ai/course-tutor-panel";
@@ -311,10 +312,30 @@ export default function CoursePlayerPage({
   if (courseLoading) {
     return (
       <main className="min-h-screen px-6 py-10">
-        <div className="mx-auto max-w-6xl">
-          <Card className="p-8">
-            <Notice>Loading course…</Notice>
+        <div className="mx-auto max-w-6xl space-y-6">
+          <Card className="space-y-4">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-2 w-full" />
           </Card>
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="space-y-2 p-4">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-1 w-full" />
+                </Card>
+              ))}
+            </div>
+            <Card className="space-y-4">
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </Card>
+          </div>
         </div>
       </main>
     );
