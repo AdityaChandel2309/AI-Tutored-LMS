@@ -27,6 +27,8 @@ type LessonSeed = {
   durationSec: number;
   body?: string;
   quiz?: QuizSeed;
+  videoUrl?: string;
+  posterUrl?: string;
 };
 
 type ModuleSeed = { title: string; lessons: LessonSeed[] };
