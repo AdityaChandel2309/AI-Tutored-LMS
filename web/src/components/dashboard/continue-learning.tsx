@@ -71,7 +71,7 @@ export function ContinueLearning() {
         </div>
         <div className="flex shrink-0 gap-2">
           <Button
-            onClick={() => router.push(`/dashboard/my-courses/${next.courseId}`)}
+            onClick={() => router.push(`/dashboard/courses/${next.courseId}`)}
           >
             <PlayCircle className="h-4 w-4" aria-hidden />
             Resume
