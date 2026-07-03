@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -239,6 +240,7 @@ function AttemptView({
     Record<string, string[]>
   >({});
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [showReview, setShowReview] = useState(false);
 
   const submitAttempt = useSubmitAttempt(
     attempt.id,
@@ -246,9 +248,35 @@ function AttemptView({
     courseId,
   );
 
+  // Countdown timer (only if time-limited).
+  const deadlineMs = useMemo(() => {
+    if (!assessment.timeLimitSec) return null;
+    const started = attempt.startedAt
+      ? new Date(attempt.startedAt).getTime()
+      : Date.now();
+    return started + assessment.timeLimitSec * 1000;
+  }, [assessment.timeLimitSec, attempt.startedAt]);
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!deadlineMs) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [deadlineMs]);
+
+  const secondsLeft = deadlineMs
+    ? Math.max(0, Math.floor((deadlineMs - now) / 1000))
+    : null;
+
+  const autoSubmittedRef = useRef(false);
+
   const currentQuestion = questions[currentIdx];
   const answeredCount = Object.keys(answers).length;
   const allAnswered = answeredCount === questions.length;
+  const unansweredIndexes = questions
+    .map((q, i) => ({ q, i }))
+    .filter(({ q }) => !(answers[q.id] && answers[q.id].length > 0))
+    .map(({ i }) => i);
 
   function selectOption(questionId: string, optionId: string, questionType: string) {
     setAnswers((prev) => {
@@ -266,8 +294,6 @@ function AttemptView({
   }
 
   function handleSubmit() {
-    if (!confirm("Submit your answers? This cannot be undone.")) return;
-
     const answerPayload = questions.map((q) => ({
       questionId: q.id,
       selectedOptionIds: answers[q.id] ?? [],
@@ -279,12 +305,92 @@ function AttemptView({
     );
   }
 
+  // Auto-submit once the timer expires.
+  useEffect(() => {
+    if (secondsLeft === 0 && !autoSubmittedRef.current && !submitAttempt.isPending) {
+      autoSubmittedRef.current = true;
+      handleSubmit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft]);
+
   if (!currentQuestion) {
     return <Notice variant="danger">No questions found.</Notice>;
   }
 
+  // ── Review-before-submit screen ──
+  if (showReview) {
+    return (
+      <div className="space-y-4">
+        {secondsLeft !== null && (
+          <TimerBar secondsLeft={secondsLeft} />
+        )}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold">Review your answers</h3>
+          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+            You answered {answeredCount} of {questions.length} questions.
+          </p>
+
+          {unansweredIndexes.length > 0 && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg bg-[var(--color-warning-soft)] p-3 text-xs text-[var(--color-warning)]">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                {unansweredIndexes.length} question
+                {unansweredIndexes.length === 1 ? "" : "s"} still unanswered.
+              </span>
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-10">
+            {questions.map((q, i) => {
+              const answered = !!(answers[q.id] && answers[q.id].length > 0);
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => {
+                    setCurrentIdx(i);
+                    setShowReview(false);
+                  }}
+                  className={`aspect-square rounded-md border text-xs font-semibold transition-colors ${
+                    answered
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
+                      : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] hover:border-[var(--color-warning)]"
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <Button size="sm" variant="ghost" onClick={() => setShowReview(false)}>
+              ← Back to questions
+            </Button>
+            <Button
+              size="sm"
+              disabled={submitAttempt.isPending}
+              onClick={handleSubmit}
+            >
+              {submitAttempt.isPending ? "Submitting…" : "Submit Quiz"}
+            </Button>
+          </div>
+
+          {submitAttempt.isError && (
+            <Notice variant="danger" className="mt-3">
+              {(submitAttempt.error as Error).message}
+            </Notice>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {secondsLeft !== null && <TimerBar secondsLeft={secondsLeft} />}
+
       {/* Progress bar */}
       <div className="flex items-center justify-between text-xs text-[var(--color-muted-foreground)]">
         <span>
@@ -400,10 +506,10 @@ function AttemptView({
         ) : (
           <Button
             size="sm"
-            disabled={!allAnswered || submitAttempt.isPending}
-            onClick={handleSubmit}
+            onClick={() => setShowReview(true)}
+            disabled={submitAttempt.isPending}
           >
-            {submitAttempt.isPending ? "Submitting…" : "Submit Quiz"}
+            Review & Submit
           </Button>
         )}
       </div>
@@ -413,6 +519,31 @@ function AttemptView({
           {(submitAttempt.error as Error).message}
         </Notice>
       )}
+    </div>
+  );
+}
+
+// ─── Timer Bar ──────────────────────────────
+
+function TimerBar({ secondsLeft }: { secondsLeft: number }) {
+  const minutes = Math.floor(secondsLeft / 60);
+  const seconds = secondsLeft % 60;
+  const urgent = secondsLeft <= 60;
+  return (
+    <div
+      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm font-medium ${
+        urgent
+          ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
+          : "border-[var(--color-border)] bg-[var(--color-card-muted)] text-[var(--color-foreground)]"
+      }`}
+    >
+      <span className="inline-flex items-center gap-2">
+        <Clock className="h-4 w-4" aria-hidden />
+        Time remaining
+      </span>
+      <span className="tabular-nums">
+        {minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
+      </span>
     </div>
   );
 }
