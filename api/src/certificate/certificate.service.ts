@@ -301,12 +301,37 @@ export class CertificateService {
       throw new ForbiddenException('Access denied');
     }
 
-    if (!cert.pdfObjectKey) {
-      throw new NotFoundException('PDF not available');
+    let objectKey = cert.pdfObjectKey;
+
+    // Lazily materialize the PDF for legacy / seeded certificates that were
+    // created without one. Idempotent: subsequent calls reuse the stored key.
+    if (!objectKey) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+      });
+      const pdfBuffer = await this.generatePdf({
+        learnerName: cert.learnerName,
+        courseTitle: cert.courseTitle,
+        completionDate: cert.completionDate,
+        certificateNumber: cert.certificateNumber,
+        scoreSummary: cert.scoreSummary,
+        tenantName: tenant?.name ?? 'LMS',
+      });
+      objectKey = `certificates/${tenantId}/${shortId()}.pdf`;
+      await this.storage.uploadBuffer({
+        bucket: 'lms-certificates',
+        objectKey,
+        body: pdfBuffer,
+        contentType: 'application/pdf',
+      });
+      await this.prisma.issuedCertificate.update({
+        where: { id: cert.id },
+        data: { pdfObjectKey: objectKey },
+      });
     }
 
     const url = await this.storage.getPresignedGetUrl({
-      objectKey: cert.pdfObjectKey,
+      objectKey,
       bucket: 'lms-certificates',
       expiresInSeconds: 300,
     });
