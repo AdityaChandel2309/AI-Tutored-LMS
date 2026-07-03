@@ -8,6 +8,8 @@
     "build": "turbo run build",
     "build:dev": "turbo run build && node scripts/assemble-dist.js",
     "dev": "turbo run dev --filter=web --",
+    "bootstrap": "bash scripts/bootstrap.sh",
+    "bootstrap:reset": "bash scripts/bootstrap.sh --reset",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "clean": "turbo run clean"
