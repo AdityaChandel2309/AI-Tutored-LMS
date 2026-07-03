@@ -4,12 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { VideoPlayer } from "@/components/course-player/video-player";
 import { ScormPlayer } from "@/components/course-player/scorm-player";
 import { TextLessonReader } from "@/components/course-player/text-lesson-reader";
@@ -26,14 +21,9 @@ import type {
   ScormLessonContent,
 } from "@/lib/types/course";
 
-// Lesson types whose completion can ALSO be detected automatically (video
-// playback ≥90%, scroll-to-end for text, passing a quiz). Auto-tracking is a
-// convenience on top of the always-available manual "Complete & Continue"
-// action — it is never the only way to finish a lesson.
-const AUTO_TRACKED_TYPES = new Set(["text", "video", "quiz"]);
-
 // Quiz completion is gated on passing the quiz itself, so we don't offer a
-// manual "mark complete" shortcut for it.
+// manual "mark complete" shortcut for it. Every other lesson type requires an
+// explicit click on the "Complete & Continue" button — no auto-completion.
 const MANUAL_COMPLETE_TYPES = new Set([
   "text",
   "video",
@@ -70,7 +60,6 @@ export function LessonContent({
   moduleTitle?: string;
 }) {
   const isCompleted = state === "completed";
-  const isAutoTracked = AUTO_TRACKED_TYPES.has(lesson.type);
   const canManuallyComplete = MANUAL_COMPLETE_TYPES.has(lesson.type);
 
   const stateVariant =
@@ -79,9 +68,6 @@ export function LessonContent({
       : state === "in_progress"
         ? "warning"
         : "neutral";
-
-  // Only allow an automatic completion to fire while the lesson is incomplete.
-  const handleAutoComplete = isCompleted ? undefined : onCompleteLesson;
 
   const durationLabel = formatDuration(lesson.duration);
 
@@ -132,7 +118,6 @@ export function LessonContent({
             <VideoPlayer
               videoId={videoContent.videoId}
               posterUrl={videoContent.posterUrl}
-              onComplete={handleAutoComplete}
             />
           ) : (
             <Notice>No video attached yet.</Notice>
@@ -153,7 +138,6 @@ export function LessonContent({
           <TextLessonReader
             content={lesson.content}
             alreadyComplete={isCompleted}
-            onComplete={handleAutoComplete}
           />
         ) : (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-card-muted)] p-8 text-sm text-[var(--color-muted-foreground)]">
@@ -161,15 +145,10 @@ export function LessonContent({
           </div>
         )}
 
-        {/* Auto-tracking hint (only while incomplete and auto-trackable) */}
-        {!isCompleted && isAutoTracked && (
-          <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {lesson.type === "video"
-              ? "Tip: this lesson completes on its own once you watch most of it."
-              : lesson.type === "quiz"
-                ? "Pass the quiz to complete this lesson."
-                : "Tip: this lesson completes on its own once you finish reading."}
+        {/* Completion hint */}
+        {!isCompleted && lesson.type === "quiz" && (
+          <p className="mt-4 text-xs text-[var(--color-muted-foreground)]">
+            Pass the quiz to complete this lesson.
           </p>
         )}
 
