@@ -6,9 +6,12 @@ import {
   Patch,
   Post,
   Request,
+  Response,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response as ExpressResponse } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -125,5 +128,29 @@ export class CertificateController {
       authUserId: (req.user as any).sub ?? (req.user as any).userId,
       certificateId,
     });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('certificates/:id/download')
+  @ApiOperation({ summary: 'Download certificate PDF through the API' })
+  async downloadCertificatePdf(
+    @Request() req: TenantAwareRequest,
+    @Param('id') certificateId: string,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const file = await this.certificateService.getCertificatePdfFile({
+      tenantId: req.tenant?.id ?? null,
+      authUserId: (req.user as any).sub ?? (req.user as any).userId,
+      certificateId,
+    });
+
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Length', file.data.length);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.fileName.replace(/"/g, '')}"`,
+    );
+
+    return new StreamableFile(file.data);
   }
 }

@@ -5,9 +5,12 @@ import {
   Get,
   Param,
   Post,
+  Response,
+  StreamableFile,
   Request,
   UseGuards,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -94,6 +97,28 @@ export class LessonResourceController {
       userId: req.user!.userId,
       resourceId,
     });
+  }
+
+  @Get('resources/:id/file')
+  @UseGuards(JwtAuthGuard)
+  async downloadFile(
+    @Param('id') resourceId: string,
+    @Request() req: TenantAwareRequest,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const file = await this.svc.getDownloadFile({
+      tenantId: req.tenant?.id ?? '',
+      userId: req.user!.userId,
+      resourceId,
+    });
+
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Length', file.data.length);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.fileName.replace(/"/g, '')}"`,
+    );
+    return new StreamableFile(file.data);
   }
 
   @Delete('resources/:id')

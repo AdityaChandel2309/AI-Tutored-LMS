@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, Response, StreamableFile, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response as ExpressResponse } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -34,6 +35,24 @@ export class KnowledgeController {
   @ApiOperation({ summary: 'Get document download URL' })
   getDownloadUrl(@Request() req: TenantAwareRequest, @Param('id') id: string) {
     return this.knowledgeService.getDownloadUrl(req.tenant?.id ?? null, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('documents/:id/file')
+  @ApiOperation({ summary: 'Download document through the API' })
+  async downloadFile(
+    @Request() req: TenantAwareRequest,
+    @Param('id') id: string,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const file = await this.knowledgeService.getDownloadFile(req.tenant?.id ?? null, id);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Length', file.data.length);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.fileName.replace(/"/g, '')}"`,
+    );
+    return new StreamableFile(file.data);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

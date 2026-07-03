@@ -279,6 +279,88 @@ export class CertificateService {
     authUserId: string;
     certificateId: string;
   }) {
+    const { cert, objectKey } = await this.resolveCertificatePdf(input);
+
+    const url = await this.storage.getPresignedGetUrl({
+      objectKey,
+      bucket: 'lms-certificates',
+      expiresInSeconds: 300,
+    });
+
+    return { url, certificateNumber: cert.certificateNumber };
+  }
+
+  async getCertificatePdfFile(input: {
+    tenantId: string | null;
+    authUserId: string;
+    certificateId: string;
+  }) {
+    const { cert, objectKey } = await this.resolveCertificatePdf(input);
+    const data = await this.storage.getObjectBuffer({
+      objectKey,
+      bucket: 'lms-certificates',
+    });
+
+    return {
+      data,
+      contentType: 'application/pdf',
+      fileName: `${cert.certificateNumber}.pdf`,
+    };
+  }
+
+  // ─── Auto-issuance listener ─────────────────
+
+  @OnEvent('course.completed')
+  async handleCourseCompleted(event: {
+    type: string;
+    tenantId: string;
+    payload: {
+      enrollmentId: string;
+      userId: string;
+      courseId: string;
+    };
+  }) {
+    try {
+      const template = await this.prisma.certificateTemplate.findUnique({
+        where: { courseId: event.payload.courseId },
+      });
+
+      if (!template || !template.isActive) return;
+
+      // Check not already issued
+      const existing = await this.prisma.issuedCertificate.findUnique({
+        where: {
+          templateId_enrollmentId: {
+            templateId: template.id,
+            enrollmentId: event.payload.enrollmentId,
+          },
+        },
+      });
+      if (existing) return;
+
+      await this.issueCertificate({
+        tenantId: event.tenantId,
+        templateId: template.id,
+        enrollmentId: event.payload.enrollmentId,
+      });
+
+      this.logger.log(
+        `Auto-issued certificate for enrollment ${event.payload.enrollmentId}`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Auto-issuance failed for enrollment ${event.payload.enrollmentId}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  // ─── Private helpers ────────────────────────
+
+  private async resolveCertificatePdf(input: {
+    tenantId: string | null;
+    authUserId: string;
+    certificateId: string;
+  }) {
     const { tenantId, authUserId, certificateId } = input;
     if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
 
@@ -330,62 +412,8 @@ export class CertificateService {
       });
     }
 
-    const url = await this.storage.getPresignedGetUrl({
-      objectKey,
-      bucket: 'lms-certificates',
-      expiresInSeconds: 300,
-    });
-
-    return { url, certificateNumber: cert.certificateNumber };
+    return { cert, objectKey };
   }
-
-  // ─── Auto-issuance listener ─────────────────
-
-  @OnEvent('course.completed')
-  async handleCourseCompleted(event: {
-    type: string;
-    tenantId: string;
-    payload: {
-      enrollmentId: string;
-      userId: string;
-      courseId: string;
-    };
-  }) {
-    try {
-      const template = await this.prisma.certificateTemplate.findUnique({
-        where: { courseId: event.payload.courseId },
-      });
-
-      if (!template || !template.isActive) return;
-
-      // Check not already issued
-      const existing = await this.prisma.issuedCertificate.findUnique({
-        where: {
-          templateId_enrollmentId: {
-            templateId: template.id,
-            enrollmentId: event.payload.enrollmentId,
-          },
-        },
-      });
-      if (existing) return;
-
-      await this.issueCertificate({
-        tenantId: event.tenantId,
-        templateId: template.id,
-        enrollmentId: event.payload.enrollmentId,
-      });
-
-      this.logger.log(
-        `Auto-issued certificate for enrollment ${event.payload.enrollmentId}`,
-      );
-    } catch (err) {
-      this.logger.warn(
-        `Auto-issuance failed for enrollment ${event.payload.enrollmentId}: ${(err as Error).message}`,
-      );
-    }
-  }
-
-  // ─── Private helpers ────────────────────────
 
   private async verifyAssessmentsPassed(
     courseId: string,
