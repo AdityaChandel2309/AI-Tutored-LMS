@@ -105,6 +105,14 @@ export class CertificateController {
     );
   }
 
+  // ─── Public verification (no auth) ──────────
+
+  @Get('certificates/verify/:code')
+  @ApiOperation({ summary: 'Publicly verify a certificate by its code' })
+  verifyCertificate(@Param('code') code: string) {
+    return this.certificateService.verifyByNumber(code);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('certificates/:id/pdf')
   @ApiOperation({ summary: 'Get presigned URL for certificate PDF download' })
