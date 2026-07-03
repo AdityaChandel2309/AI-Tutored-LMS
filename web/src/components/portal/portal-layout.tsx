@@ -31,15 +31,25 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile header */}
-        <header className="flex items-center gap-3 border-b bg-[var(--color-card)] px-4 py-2 md:hidden">
+        <header className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 md:hidden">
           <button
             onClick={() => setMobileOpen(true)}
-            className="text-[var(--color-muted-foreground)] rounded-[var(--radius)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2"
+            className="rounded-[var(--radius)] p-1.5 text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" aria-hidden />
           </button>
-          <span className="font-bold text-sm">{BRAND_NAME}</span>
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="flex h-7 w-7 items-center justify-center rounded-md bg-[linear-gradient(135deg,var(--color-primary),color-mix(in_oklch,var(--color-primary)_65%,var(--color-accent)))] text-[11px] font-bold text-white shadow-sm"
+            >
+              {BRAND_NAME.slice(0, 2).toUpperCase()}
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-[var(--color-foreground)]">
+              {BRAND_NAME}
+            </span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto bg-[var(--color-background)]">
