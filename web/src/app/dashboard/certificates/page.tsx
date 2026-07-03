@@ -62,12 +62,17 @@ export default function CertificatesPage() {
   }
 
   async function shareCertificate(cert: IssuedCertificate) {
-    const shareText = `I earned "${cert.courseTitle}" — verification code ${cert.certificateNumber}`;
+    const verifyUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/verify/${encodeURIComponent(cert.certificateNumber)}`
+        : `/verify/${encodeURIComponent(cert.certificateNumber)}`;
+    const shareText = `I earned "${cert.courseTitle}" — verify at ${verifyUrl}`;
     try {
       if (typeof navigator !== "undefined" && "share" in navigator) {
         await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({
           title: cert.courseTitle,
           text: shareText,
+          url: verifyUrl,
         });
         return;
       }
