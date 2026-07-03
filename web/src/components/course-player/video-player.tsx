@@ -4,10 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Notice } from "@/components/ui/notice";
 import { useVideoStreamUrl } from "@/lib/api/courses";
 
-// Fraction of the video that must be watched before it counts as complete.
-// Mirrors the Udemy/Coursera convention of ~90%.
-const COMPLETION_THRESHOLD = 0.9;
-
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 const RESUME_KEY_PREFIX = "lms:video-progress:";
 // Don't restore near the very start (annoying) or the very end (already done).
@@ -17,13 +13,10 @@ const RESUME_MAX_FRACTION = 0.95;
 export function VideoPlayer({
   videoId,
   posterUrl,
-  onComplete,
   captionsUrl,
 }: {
   videoId: string;
   posterUrl?: string | null;
-  // Fired once when the learner crosses the completion threshold.
-  onComplete?: () => void;
   // Optional WebVTT track. When provided, the CC toggle appears.
   captionsUrl?: string | null;
 }) {
@@ -40,20 +33,6 @@ export function VideoPlayer({
     const track = video.textTracks[0];
     if (track) track.mode = captionsOn ? "showing" : "hidden";
   }, [captionsOn, captionsUrl]);
-
-  // Ensures the completion event only fires a single time per video.
-  const firedRef = useRef(false);
-  // Keep the latest onComplete without re-binding handlers each render.
-  const onCompleteRef = useRef(onComplete);
-
-  useEffect(() => {
-    onCompleteRef.current = onComplete;
-  }, [onComplete]);
-
-  // Reset the one-shot guard when the video changes (lesson navigation).
-  useEffect(() => {
-    firedRef.current = false;
-  }, [videoId]);
 
   // Persist playback rate onto the video element whenever it changes.
   useEffect(() => {
@@ -79,17 +58,6 @@ export function VideoPlayer({
     }
   }
 
-  function fireComplete() {
-    if (firedRef.current) return;
-    firedRef.current = true;
-    onCompleteRef.current?.();
-    try {
-      localStorage.removeItem(RESUME_KEY_PREFIX + videoId);
-    } catch {
-      // ignore
-    }
-  }
-
   function handleTimeUpdate(
     event: React.SyntheticEvent<HTMLVideoElement>,
   ) {
@@ -106,17 +74,6 @@ export function VideoPlayer({
     } catch {
       // ignore
     }
-    if (firedRef.current) return;
-    const watched = video.currentTime / video.duration;
-    if (watched >= COMPLETION_THRESHOLD) {
-      fireComplete();
-    }
-  }
-
-  // Some browsers fire `ended` slightly differently; treat it as a guaranteed
-  // completion in case the user seeks straight to the end.
-  function handleEnded() {
-    fireComplete();
   }
 
   if (isLoading) {
@@ -150,7 +107,6 @@ export function VideoPlayer({
         poster={posterUrl ?? undefined}
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
       >
         {captionsUrl && (
           <track
