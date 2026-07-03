@@ -108,7 +108,7 @@ export default function DashboardPage() {
 
             return (
               <>
-                <Card className="overflow-hidden bg-[linear-gradient(135deg,color-mix(in_oklch,var(--color-primary-soft)_55%,var(--color-card)),var(--color-card))]">
+                <Card className="bg-[linear-gradient(135deg,color-mix(in_oklch,var(--color-primary-soft)_55%,var(--color-card)),var(--color-card))]">
                   <div className="space-y-6">
                     <SectionHeading
                       badge={<Badge variant="warning">Workspace</Badge>}
