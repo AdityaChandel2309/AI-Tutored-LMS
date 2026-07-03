@@ -2,6 +2,7 @@ import {
   useQuery,
   keepPreviousData,
 } from "@tanstack/react-query";
+import { getApiUrl } from "@/lib/api";
 import { apiGet, apiPost, apiPatch, apiDelete, apiFetch } from "./client";
 import type { Document, DocumentCategory, DocumentListResponse } from "../types/knowledge";
 
@@ -39,7 +40,7 @@ export function getDocument(id: string) {
 }
 
 export function getDownloadUrl(id: string) {
-  return apiGet<{ url: string; fileName: string }>(`/documents/${id}/download`);
+  return Promise.resolve({ url: getApiUrl(`/documents/${id}/file`) });
 }
 
 export async function uploadDocument(file: File, metadata: { title: string; description?: string; type?: string; categoryId?: string; tags?: string[]; status?: string }) {

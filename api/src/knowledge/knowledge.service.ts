@@ -264,35 +264,7 @@ export class KnowledgeService {
   }
 
   async getDownloadUrl(tenantId: string | null, id: string) {
-    if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
-    const doc = await this.prisma.document.findFirst({
-      where: { id, tenantId },
-    });
-    if (!doc) throw new NotFoundException('Document not found');
-
-    // Legacy / seeded documents may reference an object that was never uploaded
-    // to storage. Materialize a plain-text fallback from the indexed chunks so
-    // learners always get a real file back.
-    const head = await this.storage.headObject({
-      bucket: 'knowledge',
-      objectKey: doc.fileObjectKey,
-    });
-    if (!head.exists) {
-      const chunks = await this.prisma.documentChunk.findMany({
-        where: { documentId: doc.id },
-        orderBy: { chunkIndex: 'asc' },
-        select: { chunkText: true },
-      });
-      const body =
-        chunks.map((c) => c.chunkText).join('\n\n').trim() ||
-        `${doc.title}\n\n${doc.description ?? ''}`;
-      await this.storage.uploadBuffer({
-        bucket: 'knowledge',
-        objectKey: doc.fileObjectKey,
-        body: Buffer.from(body, 'utf8'),
-        contentType: doc.mimeType || 'text/plain; charset=utf-8',
-      });
-    }
+    const doc = await this.resolveDownloadableDocument(tenantId, id);
 
     const url = await this.storage.getPresignedGetUrl({
       bucket: 'knowledge',
@@ -300,6 +272,20 @@ export class KnowledgeService {
       expiresInSeconds: 3600,
     });
     return { url, fileName: doc.fileName };
+  }
+
+  async getDownloadFile(tenantId: string | null, id: string) {
+    const doc = await this.resolveDownloadableDocument(tenantId, id);
+    const data = await this.storage.getObjectBuffer({
+      bucket: 'knowledge',
+      objectKey: doc.fileObjectKey,
+    });
+
+    return {
+      data,
+      fileName: doc.fileName,
+      contentType: doc.mimeType || 'application/octet-stream',
+    };
   }
 
   async deleteDocument(tenantId: string | null, id: string) {
@@ -372,6 +358,42 @@ export class KnowledgeService {
     if (cat._count.documents > 0)
       throw new ForbiddenException('Cannot delete category with documents');
     return this.prisma.documentCategory.delete({ where: { id } });
+  }
+
+  // ─── Download helpers ─────────────────────
+
+  private async resolveDownloadableDocument(tenantId: string | null, id: string) {
+    if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
+    const doc = await this.prisma.document.findFirst({
+      where: { id, tenantId },
+    });
+    if (!doc) throw new NotFoundException('Document not found');
+
+    // Legacy / seeded documents may reference an object that was never uploaded
+    // to storage. Materialize a plain-text fallback from the indexed chunks so
+    // learners always get a real file back.
+    const head = await this.storage.headObject({
+      bucket: 'knowledge',
+      objectKey: doc.fileObjectKey,
+    });
+    if (!head.exists) {
+      const chunks = await this.prisma.documentChunk.findMany({
+        where: { documentId: doc.id },
+        orderBy: { chunkIndex: 'asc' },
+        select: { chunkText: true },
+      });
+      const body =
+        chunks.map((c) => c.chunkText).join('\n\n').trim() ||
+        `${doc.title}\n\n${doc.description ?? ''}`;
+      await this.storage.uploadBuffer({
+        bucket: 'knowledge',
+        objectKey: doc.fileObjectKey,
+        body: Buffer.from(body, 'utf8'),
+        contentType: doc.mimeType || 'text/plain; charset=utf-8',
+      });
+    }
+
+    return doc;
   }
 
   // ─── Embedding helpers ────────────────────

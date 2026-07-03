@@ -11,11 +11,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyCertificates } from "@/lib/api/certificates";
-import { apiGet } from "@/lib/api/client";
-import type {
-  CertificatePdfResponse,
-  IssuedCertificate,
-} from "@/lib/types/course";
+import { getApiUrl } from "@/lib/api";
+import type { IssuedCertificate } from "@/lib/types/course";
 
 function CertificatesSkeleton() {
   return (
@@ -39,10 +36,7 @@ export default function CertificatesPage() {
 
   async function downloadPdf(certId: string) {
     try {
-      const { url } = await apiGet<CertificatePdfResponse>(
-        `/certificates/${certId}/pdf`,
-      );
-      window.open(url, "_blank");
+      window.open(getApiUrl(`/certificates/${certId}/download`), "_blank");
     } catch (err) {
       alert(`Failed to download: ${(err as Error).message}`);
     }

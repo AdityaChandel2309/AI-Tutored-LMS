@@ -139,6 +139,61 @@ export class LessonResourceService {
     userId: string;
     resourceId: string;
   }) {
+    const resource = await this.resolveDownloadableResource(input);
+
+    const url = await this.storage.getPresignedGetUrl({
+      objectKey: resource.objectKey,
+      bucket: getResourceBucket(),
+      expiresInSeconds: getResourcePresignDownloadTtlSec(),
+    });
+
+    return {
+      url,
+      fileName: resource.fileName,
+      mimeType: resource.mimeType,
+      sizeBytes: resource.sizeBytes,
+      expiresAt: new Date(
+        Date.now() + getResourcePresignDownloadTtlSec() * 1000,
+      ).toISOString(),
+    };
+  }
+
+  async getDownloadFile(input: {
+    tenantId: string;
+    userId: string;
+    resourceId: string;
+  }) {
+    const resource = await this.resolveDownloadableResource(input);
+    const data = await this.storage.getObjectBuffer({
+      objectKey: resource.objectKey,
+      bucket: getResourceBucket(),
+    });
+
+    return {
+      data,
+      fileName: resource.fileName,
+      mimeType: resource.mimeType || 'application/octet-stream',
+    };
+  }
+
+  async deleteResource(tenantId: string, resourceId: string) {
+    const resource = await this.prisma.lessonResource.findFirst({
+      where: { id: resourceId, tenantId },
+    });
+    if (!resource) throw new NotFoundException('Resource not found');
+
+    await this.storage
+      .deleteObject({ objectKey: resource.objectKey, bucket: getResourceBucket() })
+      .catch(() => undefined);
+    await this.prisma.lessonResource.delete({ where: { id: resourceId } });
+    return { deleted: true };
+  }
+
+  private async resolveDownloadableResource(input: {
+    tenantId: string;
+    userId: string;
+    resourceId: string;
+  }) {
     const resource = await this.prisma.lessonResource.findFirst({
       where: { id: input.resourceId, tenantId: input.tenantId },
       include: {
@@ -162,33 +217,6 @@ export class LessonResourceService {
       }
     }
 
-    const url = await this.storage.getPresignedGetUrl({
-      objectKey: resource.objectKey,
-      bucket: getResourceBucket(),
-      expiresInSeconds: getResourcePresignDownloadTtlSec(),
-    });
-
-    return {
-      url,
-      fileName: resource.fileName,
-      mimeType: resource.mimeType,
-      sizeBytes: resource.sizeBytes,
-      expiresAt: new Date(
-        Date.now() + getResourcePresignDownloadTtlSec() * 1000,
-      ).toISOString(),
-    };
-  }
-
-  async deleteResource(tenantId: string, resourceId: string) {
-    const resource = await this.prisma.lessonResource.findFirst({
-      where: { id: resourceId, tenantId },
-    });
-    if (!resource) throw new NotFoundException('Resource not found');
-
-    await this.storage
-      .deleteObject({ objectKey: resource.objectKey, bucket: getResourceBucket() })
-      .catch(() => undefined);
-    await this.prisma.lessonResource.delete({ where: { id: resourceId } });
-    return { deleted: true };
+    return resource;
   }
 }

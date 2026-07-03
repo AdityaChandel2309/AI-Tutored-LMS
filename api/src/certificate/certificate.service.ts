@@ -279,56 +279,7 @@ export class CertificateService {
     authUserId: string;
     certificateId: string;
   }) {
-    const { tenantId, authUserId, certificateId } = input;
-    if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
-
-    const cert = await this.prisma.issuedCertificate.findFirst({
-      where: { id: certificateId, tenantId },
-    });
-    if (!cert) throw new NotFoundException('Certificate not found');
-
-    // Allow the owner or admins/instructors
-    const user = await this.prisma.user.findFirst({
-      where: { keycloakId: authUserId, tenantId, isActive: true },
-    });
-    if (!user) throw new ForbiddenException('User not found');
-
-    const isOwner = cert.userId === user.id;
-    const isAdmin = user.roles.some((r: string) =>
-      ['admin', 'instructor'].includes(r),
-    );
-    if (!isOwner && !isAdmin) {
-      throw new ForbiddenException('Access denied');
-    }
-
-    let objectKey = cert.pdfObjectKey;
-
-    // Lazily materialize the PDF for legacy / seeded certificates that were
-    // created without one. Idempotent: subsequent calls reuse the stored key.
-    if (!objectKey) {
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
-      });
-      const pdfBuffer = await this.generatePdf({
-        learnerName: cert.learnerName,
-        courseTitle: cert.courseTitle,
-        completionDate: cert.completionDate,
-        certificateNumber: cert.certificateNumber,
-        scoreSummary: cert.scoreSummary,
-        tenantName: tenant?.name ?? 'LMS',
-      });
-      objectKey = `certificates/${tenantId}/${shortId()}.pdf`;
-      await this.storage.uploadBuffer({
-        bucket: 'lms-certificates',
-        objectKey,
-        body: pdfBuffer,
-        contentType: 'application/pdf',
-      });
-      await this.prisma.issuedCertificate.update({
-        where: { id: cert.id },
-        data: { pdfObjectKey: objectKey },
-      });
-    }
+    const { cert, objectKey } = await this.resolveCertificatePdf(input);
 
     const url = await this.storage.getPresignedGetUrl({
       objectKey,
@@ -337,6 +288,24 @@ export class CertificateService {
     });
 
     return { url, certificateNumber: cert.certificateNumber };
+  }
+
+  async getCertificatePdfFile(input: {
+    tenantId: string | null;
+    authUserId: string;
+    certificateId: string;
+  }) {
+    const { cert, objectKey } = await this.resolveCertificatePdf(input);
+    const data = await this.storage.getObjectBuffer({
+      objectKey,
+      bucket: 'lms-certificates',
+    });
+
+    return {
+      data,
+      contentType: 'application/pdf',
+      fileName: `${cert.certificateNumber}.pdf`,
+    };
   }
 
   // ─── Auto-issuance listener ─────────────────
@@ -386,6 +355,71 @@ export class CertificateService {
   }
 
   // ─── Private helpers ────────────────────────
+
+  private async resolveCertificatePdf(input: {
+    tenantId: string | null;
+    authUserId: string;
+    certificateId: string;
+  }) {
+    const { tenantId, authUserId, certificateId } = input;
+    if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
+
+    const cert = await this.prisma.issuedCertificate.findFirst({
+      where: { id: certificateId, tenantId },
+    });
+    if (!cert) throw new NotFoundException('Certificate not found');
+
+    // Allow the owner or admins/instructors
+    const user = await this.prisma.user.findFirst({
+      where: { keycloakId: authUserId, tenantId, isActive: true },
+    });
+    if (!user) throw new ForbiddenException('User not found');
+
+    const isOwner = cert.userId === user.id;
+    const isAdmin = user.roles.some((r: string) =>
+      ['admin', 'instructor'].includes(r),
+    );
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    let objectKey = cert.pdfObjectKey;
+    const existingObject = objectKey
+      ? await this.storage.headObject({
+          bucket: 'lms-certificates',
+          objectKey,
+        })
+      : null;
+
+    // Lazily materialize the PDF for legacy / seeded certificates that were
+    // created without one. Idempotent: subsequent calls reuse the stored key.
+    if (!objectKey || !existingObject?.exists) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+      });
+      const pdfBuffer = await this.generatePdf({
+        learnerName: cert.learnerName,
+        courseTitle: cert.courseTitle,
+        completionDate: cert.completionDate,
+        certificateNumber: cert.certificateNumber,
+        scoreSummary: cert.scoreSummary,
+        tenantName: tenant?.name ?? 'LMS',
+      });
+      objectKey = `certificates/${tenantId}/${shortId()}.pdf`;
+      await this.storage.uploadBuffer({
+        bucket: 'lms-certificates',
+        objectKey,
+        body: pdfBuffer,
+        contentType: 'application/pdf',
+      });
+      await this.prisma.issuedCertificate.update({
+        where: { id: cert.id },
+        data: { pdfObjectKey: objectKey },
+      });
+    }
+
+    return { cert, objectKey };
+  }
 
   private async verifyAssessmentsPassed(
     courseId: string,
