@@ -129,6 +129,13 @@ const DEMO_COURSES: CourseSeed[] = [
             body: 'Workplace safety protects you, your colleagues, and the organization. Most incidents are preventable — reporting near-misses early is one of the most effective ways to stop a serious accident later.',
           },
           {
+            title: 'Safety Walkthrough (Video)',
+            type: 'video',
+            durationSec: 596,
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            posterUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+          },
+          {
             title: 'Identifying Common Hazards',
             type: 'text',
             durationSec: 420,
@@ -167,6 +174,13 @@ const DEMO_COURSES: CourseSeed[] = [
         lessons: [
           { title: 'The Communication Model', type: 'text', durationSec: 300, body: 'Every message has a sender, a channel, and a receiver. Match the channel to the message.' },
           { title: 'Active Listening', type: 'text', durationSec: 360, body: 'Listening is not waiting for your turn to talk. Paraphrase to confirm understanding.' },
+          {
+            title: 'Communication in Action (Video)',
+            type: 'video',
+            durationSec: 653,
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+            posterUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+          },
         ],
       },
       {
@@ -215,6 +229,13 @@ const DEMO_COURSES: CourseSeed[] = [
         lessons: [
           { title: 'The Fire Triangle', type: 'text', durationSec: 240, body: 'Heat + fuel + oxygen. Remove one to break the fire.' },
           { title: 'Extinguisher Types', type: 'text', durationSec: 360, body: 'Water, foam, CO2, dry powder, wet chemical — each matched to a fire class.' },
+          {
+            title: 'Extinguisher Demo (Video)',
+            type: 'video',
+            durationSec: 15,
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+            posterUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+          },
         ],
       },
       {
@@ -238,6 +259,13 @@ const DEMO_COURSES: CourseSeed[] = [
         lessons: [
           { title: 'XLOOKUP vs VLOOKUP', type: 'text', durationSec: 360, body: 'XLOOKUP handles left-lookup, exact match by default, and returns arrays.' },
           { title: 'Dynamic Arrays (FILTER, SORT, UNIQUE)', type: 'text', durationSec: 420, body: 'Spill ranges let one formula power an entire report.' },
+          {
+            title: 'Formula Walkthrough (Video)',
+            type: 'video',
+            durationSec: 15,
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+            posterUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
+          },
         ],
       },
       {
@@ -285,6 +313,13 @@ const DEMO_COURSES: CourseSeed[] = [
         lessons: [
           { title: 'Welcome & Company Values', type: 'text', durationSec: 300, body: 'Meet the mission, values, and the people behind them.' },
           { title: 'Your Tools & Access', type: 'text', durationSec: 240, body: 'Email, chat, VPN, HRIS, LMS. If something is missing, ping IT.' },
+          {
+            title: 'Welcome Video from Leadership',
+            type: 'video',
+            durationSec: 15,
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+            posterUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg',
+          },
         ],
       },
       {
