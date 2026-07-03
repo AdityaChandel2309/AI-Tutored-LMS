@@ -13,6 +13,7 @@ import {
 import { VideoPlayer } from "@/components/course-player/video-player";
 import { ScormPlayer } from "@/components/course-player/scorm-player";
 import { TextLessonReader } from "@/components/course-player/text-lesson-reader";
+import { LessonResources } from "@/components/course-player/lesson-resources";
 import { QuizPlayer } from "@/components/assessment/quiz-player";
 import {
   formatDuration,
@@ -171,6 +172,8 @@ export function LessonContent({
                 : "Tip: this lesson completes on its own once you finish reading."}
           </p>
         )}
+
+        <LessonResources lessonId={lesson.id} />
       </div>
 
       {/* ── Footer action bar ── */}
