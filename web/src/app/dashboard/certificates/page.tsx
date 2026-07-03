@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, FileText, Medal, Trophy } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Check, Copy, FileText, Medal, Share2, Trophy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ function CertificatesSkeleton() {
 export default function CertificatesPage() {
   const router = useRouter();
   const certificatesQuery = useMyCertificates();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   async function downloadPdf(certId: string) {
     try {
@@ -44,6 +46,35 @@ export default function CertificatesPage() {
     } catch (err) {
       alert(`Failed to download: ${(err as Error).message}`);
     }
+  }
+
+  async function copyCode(certNumber: string) {
+    try {
+      await navigator.clipboard.writeText(certNumber);
+      setCopiedId(certNumber);
+      setTimeout(
+        () => setCopiedId((v) => (v === certNumber ? null : v)),
+        1500,
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  async function shareCertificate(cert: IssuedCertificate) {
+    const shareText = `I earned "${cert.courseTitle}" — verification code ${cert.certificateNumber}`;
+    try {
+      if (typeof navigator !== "undefined" && "share" in navigator) {
+        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({
+          title: cert.courseTitle,
+          text: shareText,
+        });
+        return;
+      }
+    } catch {
+      // fallthrough
+    }
+    await copyCode(shareText);
   }
 
   return (
@@ -146,15 +177,38 @@ export default function CertificatesPage() {
                       </span>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => downloadPdf(cert.id)}
-                    >
-                      <FileText className="h-4 w-4" aria-hidden />
-                      Download PDF
-                    </Button>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="col-span-1"
+                        onClick={() => copyCode(cert.certificateNumber)}
+                        title="Copy verification code"
+                      >
+                        {copiedId === cert.certificateNumber ? (
+                          <Check className="h-4 w-4" aria-hidden />
+                        ) : (
+                          <Copy className="h-4 w-4" aria-hidden />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="col-span-1"
+                        onClick={() => shareCertificate(cert)}
+                        title="Share"
+                      >
+                        <Share2 className="h-4 w-4" aria-hidden />
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="col-span-1"
+                        onClick={() => downloadPdf(cert.id)}
+                        title="Download PDF"
+                      >
+                        <FileText className="h-4 w-4" aria-hidden />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))}

@@ -38,14 +38,14 @@ export function QuizResults({
         <div
           className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full text-3xl font-bold ${
             passed
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
+              ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+              : "bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
           }`}
         >
           {score}%
         </div>
         <h3 className="mt-4 text-xl font-semibold">
-          {passed ? "🎉 You Passed!" : "Not Passed"}
+          {passed ? "You passed" : "Not passed"}
         </h3>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
           {attempt.assessment?.title} — Attempt #{attempt.attemptNumber}
@@ -77,8 +77,8 @@ export function QuizResults({
               key={answer.id}
               className={`p-4 ${
                 answer.isCorrect
-                  ? "border-green-200 bg-green-50/50"
-                  : "border-red-200 bg-red-50/50"
+                  ? "border-[color:color-mix(in_oklch,var(--color-success)_35%,var(--color-border))] bg-[var(--color-success-soft)]/40"
+                  : "border-[color:color-mix(in_oklch,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)]/40"
               }`}
             >
               <div className="flex items-start justify-between">
@@ -103,13 +103,13 @@ export function QuizResults({
                       let marker = "○";
 
                       if (wasSelected && isCorrect) {
-                        style = "text-green-700 font-semibold";
+                        style = "text-[var(--color-success)] font-semibold";
                         marker = "✓";
                       } else if (wasSelected && !isCorrect) {
-                        style = "text-red-600 line-through";
+                        style = "text-[var(--color-danger)] line-through";
                         marker = "✗";
                       } else if (!wasSelected && isCorrect) {
-                        style = "text-green-600";
+                        style = "text-[var(--color-success)]";
                         marker = "✓";
                       }
 
@@ -123,7 +123,7 @@ export function QuizResults({
 
                   {/* Explanation */}
                   {question.explanation && (
-                    <p className="mt-2 ml-4 rounded-lg bg-blue-50 px-3 py-1.5 text-xs text-blue-800">
+                    <p className="mt-2 ml-4 rounded-lg bg-[var(--color-info-soft)] px-3 py-1.5 text-xs text-[var(--color-info)]">
                       💡 {question.explanation}
                     </p>
                   )}

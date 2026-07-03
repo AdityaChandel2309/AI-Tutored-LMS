@@ -49,6 +49,7 @@ export function QuizEditor({
   const [createTitle, setCreateTitle] = useState("");
   const [createPassingScore, setCreatePassingScore] = useState(70);
   const [createMaxAttempts, setCreateMaxAttempts] = useState<string>("");
+  const [createTimeLimitMin, setCreateTimeLimitMin] = useState<string>("");
 
   if (isLoading) {
     return <Notice>Loading assessment…</Notice>;
@@ -115,6 +116,18 @@ export function QuizEditor({
                   placeholder="Unlimited"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-[var(--color-muted-foreground)]">
+                  Time Limit (minutes, blank = untimed)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={createTimeLimitMin}
+                  onChange={(e) => setCreateTimeLimitMin(e.target.value)}
+                  placeholder="Untimed"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -127,6 +140,9 @@ export function QuizEditor({
                       passingScore: createPassingScore,
                       maxAttempts: createMaxAttempts
                         ? Number(createMaxAttempts)
+                        : undefined,
+                      timeLimitSec: createTimeLimitMin
+                        ? Number(createTimeLimitMin) * 60
                         : undefined,
                     },
                     { onSuccess: () => setShowCreate(false) },
@@ -196,6 +212,9 @@ function AssessmentEditor({
   const [metaMaxAttempts, setMetaMaxAttempts] = useState<string>(
     assessment.maxAttempts?.toString() ?? "",
   );
+  const [metaTimeLimitMin, setMetaTimeLimitMin] = useState<string>(
+    assessment.timeLimitSec ? String(Math.round(assessment.timeLimitSec / 60)) : "",
+  );
 
   const [addingQuestion, setAddingQuestion] = useState(false);
   const [newQuestion, setNewQuestion] =
@@ -228,6 +247,11 @@ function AssessmentEditor({
                 setMetaTitle(assessment.title);
                 setMetaPassingScore(assessment.passingScore);
                 setMetaMaxAttempts(assessment.maxAttempts?.toString() ?? "");
+                setMetaTimeLimitMin(
+                  assessment.timeLimitSec
+                    ? String(Math.round(assessment.timeLimitSec / 60))
+                    : "",
+                );
                 setEditingMeta(true);
               }}
             >
@@ -252,6 +276,9 @@ function AssessmentEditor({
           <span>Pass: {assessment.passingScore}%</span>
           <span>
             Attempts: {assessment.maxAttempts ?? "Unlimited"}
+          </span>
+          <span>
+            Time: {assessment.timeLimitSec ? `${Math.round(assessment.timeLimitSec / 60)} min` : "Untimed"}
           </span>
           <span>{assessment.questions.length} questions</span>
         </div>
@@ -296,6 +323,18 @@ function AssessmentEditor({
                   placeholder="Unlimited"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-[var(--color-muted-foreground)]">
+                  Time Limit (minutes, blank = untimed)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={metaTimeLimitMin}
+                  onChange={(e) => setMetaTimeLimitMin(e.target.value)}
+                  placeholder="Untimed"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -308,6 +347,9 @@ function AssessmentEditor({
                       passingScore: metaPassingScore,
                       maxAttempts: metaMaxAttempts
                         ? Number(metaMaxAttempts)
+                        : null,
+                      timeLimitSec: metaTimeLimitMin
+                        ? Number(metaTimeLimitMin) * 60
                         : null,
                     },
                     { onSuccess: () => setEditingMeta(false) },
