@@ -250,12 +250,13 @@ function CitationPreview({ id, onClose }: { id: string; onClose: () => void }) {
             <Download className="h-4 w-4" aria-hidden />
             Download
           </Button>
-          <Button asChild size="sm">
-            <Link href={`/dashboard/knowledge/${id}`}>
-              <ExternalLink className="h-4 w-4" aria-hidden />
-              Open
-            </Link>
-          </Button>
+          <Link
+            href={`/dashboard/knowledge/${id}`}
+            className="inline-flex items-center justify-center gap-1 rounded-[var(--radius)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+            Open
+          </Link>
         </footer>
       </aside>
     </div>
