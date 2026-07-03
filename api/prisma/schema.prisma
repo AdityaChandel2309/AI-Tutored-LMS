@@ -27,6 +27,7 @@ model Tenant {
   projects             Project[]
   documentCategories   DocumentCategory[]
   documents            Document[]
+  lessonResources      LessonResource[]
 }
 
 model User {
