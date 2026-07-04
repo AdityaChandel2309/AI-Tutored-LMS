@@ -25,6 +25,11 @@ export function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [captionsOn, setCaptionsOn] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
+
+  useEffect(() => {
+    setPlaybackError(false);
+  }, [data?.url]);
 
   // Sync captions visibility with the underlying TextTrack.
   useEffect(() => {
@@ -107,6 +112,7 @@ export function VideoPlayer({
         poster={posterUrl ?? undefined}
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
+        onError={() => setPlaybackError(true)}
       >
         {captionsUrl && (
           <track
@@ -118,6 +124,11 @@ export function VideoPlayer({
           />
         )}
       </video>
+      {playbackError && (
+        <Notice variant="danger">
+          This video could not be loaded. Refresh the page or ask an admin to re-seed the demo videos.
+        </Notice>
+      )}
       <div className="flex items-center justify-between gap-3 text-xs text-[var(--color-muted-foreground)]">
         <div className="flex items-center gap-3">
           <label htmlFor="video-speed" className="font-medium">Speed</label>

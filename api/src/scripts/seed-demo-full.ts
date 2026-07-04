@@ -12,14 +12,23 @@
  * tenant plus the 4 demo users (admin/instructor/learner/super.admin) exist.
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { CreateBucketCommand, HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { PrismaClient, Prisma, VideoStatus } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { loadProjectEnv } from '../env';
+import {
+  getStorageAccessKey,
+  getStorageEndpoint,
+  getStorageRegion,
+  getStorageSecretKey,
+  getVideoBucket,
+} from '../config/runtime';
 
 loadProjectEnv();
 
 const TENANT_SUBDOMAIN = 'default';
 const DEMO_TAG = 'demo';
+const DEMO_VIDEO_PREFIX = 'demo-videos';
 
 type LessonSeed = {
   title: string;
@@ -29,6 +38,12 @@ type LessonSeed = {
   quiz?: QuizSeed;
   videoUrl?: string;
   posterUrl?: string;
+};
+
+type DemoVideoAsset = {
+  objectKey: string;
+  sizeBytes: number;
+  mimeType: string;
 };
 
 type ModuleSeed = { title: string; lessons: LessonSeed[] };
@@ -132,7 +147,7 @@ const DEMO_COURSES: CourseSeed[] = [
             title: 'Safety Walkthrough (Video)',
             type: 'video',
             durationSec: 596,
-            videoUrl: 'https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4',
+            videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
             posterUrl: undefined,
           },
           {
@@ -439,6 +454,157 @@ const DEMO_PROJECTS = [
 
 // ─── Helpers ─────────────────────────────────────────
 
+const demoVideoDownloadCache = new Map<string, Promise<DemoVideoAsset>>();
+let demoVideoBucketReady: Promise<void> | null = null;
+let demoVideoStorageClient: S3Client | null = null;
+
+function getDemoVideoStorageClient() {
+  if (!demoVideoStorageClient) {
+    demoVideoStorageClient = new S3Client({
+      region: getStorageRegion(),
+      endpoint: getStorageEndpoint(),
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: getStorageAccessKey(),
+        secretAccessKey: getStorageSecretKey(),
+      },
+    });
+  }
+
+  return demoVideoStorageClient;
+}
+
+async function ensureDemoVideoBucket() {
+  if (!demoVideoBucketReady) {
+    const client = getDemoVideoStorageClient();
+    const bucket = getVideoBucket();
+    demoVideoBucketReady = (async () => {
+      try {
+        await client.send(new HeadBucketCommand({ Bucket: bucket }));
+      } catch {
+        await client.send(new CreateBucketCommand({ Bucket: bucket }));
+      }
+    })();
+  }
+
+  await demoVideoBucketReady;
+}
+
+function slugPart(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+async function uploadDemoVideoAsset(input: {
+  tenantId: string;
+  courseSlug: string;
+  lessonTitle: string;
+  sourceUrl: string;
+}) {
+  const objectKey = `${DEMO_VIDEO_PREFIX}/${input.tenantId}/${input.courseSlug}/${slugPart(input.lessonTitle)}.mp4`;
+  const cacheKey = `${objectKey}|${input.sourceUrl}`;
+
+  if (!demoVideoDownloadCache.has(cacheKey)) {
+    demoVideoDownloadCache.set(
+      cacheKey,
+      (async () => {
+        await ensureDemoVideoBucket();
+        const response = await fetch(input.sourceUrl, {
+          headers: { 'user-agent': 'lms-demo-seed/1.0' },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to download demo video ${input.sourceUrl}: HTTP ${response.status}`);
+        }
+
+        const body = Buffer.from(await response.arrayBuffer());
+        const mimeType = response.headers.get('content-type')?.split(';')[0] || 'video/mp4';
+
+        await getDemoVideoStorageClient().send(
+          new PutObjectCommand({
+            Bucket: getVideoBucket(),
+            Key: objectKey,
+            Body: body,
+            ContentType: mimeType,
+          }),
+        );
+
+        return {
+          objectKey,
+          sizeBytes: body.byteLength,
+          mimeType,
+        };
+      })(),
+    );
+  }
+
+  return demoVideoDownloadCache.get(cacheKey)!;
+}
+
+async function attachDemoVideo(input: {
+  prisma: PrismaClient;
+  tenantId: string;
+  courseId: string;
+  courseSlug: string;
+  lessonId: string;
+  lessonTitle: string;
+  sourceUrl: string;
+  uploadedBy: string;
+}) {
+  const asset = await uploadDemoVideoAsset({
+    tenantId: input.tenantId,
+    courseSlug: input.courseSlug,
+    lessonTitle: input.lessonTitle,
+    sourceUrl: input.sourceUrl,
+  });
+
+  const existingVideo = await input.prisma.video.findFirst({
+    where: {
+      tenantId: input.tenantId,
+      courseId: input.courseId,
+      objectKey: asset.objectKey,
+    },
+  });
+
+  const video = existingVideo
+    ? await input.prisma.video.update({
+        where: { id: existingVideo.id },
+        data: {
+          lessonId: input.lessonId,
+          title: input.lessonTitle,
+          status: VideoStatus.READY,
+          objectKey: asset.objectKey,
+          sizeBytes: asset.sizeBytes,
+          durationSec: null,
+          mimeType: asset.mimeType,
+          uploadedBy: input.uploadedBy,
+        },
+      })
+    : await input.prisma.video.create({
+        data: {
+          tenantId: input.tenantId,
+          courseId: input.courseId,
+          lessonId: input.lessonId,
+          title: input.lessonTitle,
+          status: VideoStatus.READY,
+          objectKey: asset.objectKey,
+          sizeBytes: asset.sizeBytes,
+          durationSec: null,
+          mimeType: asset.mimeType,
+          uploadedBy: input.uploadedBy,
+        },
+      });
+
+  await input.prisma.lesson.update({
+    where: { id: input.lessonId },
+    data: { content: { videoId: video.id, posterUrl: null } },
+  });
+}
+
 function certNumber(): string {
   return `CERT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }
@@ -653,11 +819,21 @@ async function main() {
               content:
                 l.type === 'text'
                   ? { body: l.body ?? '' }
-                  : l.type === 'video' && l.videoUrl
-                    ? { externalUrl: l.videoUrl, posterUrl: l.posterUrl ?? null }
-                    : Prisma.JsonNull,
+                  : Prisma.JsonNull,
             },
           });
+          if (l.type === 'video' && l.videoUrl) {
+            await attachDemoVideo({
+              prisma,
+              tenantId: tenant.id,
+              courseId: course.id,
+              courseSlug: seed.slug,
+              lessonId: lesson.id,
+              lessonTitle: l.title,
+              sourceUrl: l.videoUrl,
+              uploadedBy: ownerId,
+            });
+          }
           if (l.type === 'quiz' && l.quiz) {
             const assessment = await prisma.assessment.create({
               data: {
