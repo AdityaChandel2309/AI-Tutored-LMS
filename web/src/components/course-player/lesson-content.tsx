@@ -33,6 +33,13 @@ const MANUAL_COMPLETE_TYPES = new Set([
   "reading",
 ]);
 
+const SEEDED_DEMO_VIDEO_FALLBACK_URL = "/demo-videos/seeded-demo.mp4";
+
+const SEEDED_DEMO_VIDEO_HOSTS = new Set([
+  "www.w3schools.com",
+  "test-videos.co.uk",
+]);
+
 export function LessonContent({
   lesson,
   courseId,
@@ -226,7 +233,21 @@ function ExternalVideoPlayer({
   externalUrl: string;
   posterUrl?: string | null;
 }) {
+  const [sourceUrl, setSourceUrl] = useState(externalUrl);
   const [hasError, setHasError] = useState(false);
+
+  function handleVideoError() {
+    if (
+      isSeededDemoVideoUrl(externalUrl) &&
+      sourceUrl !== SEEDED_DEMO_VIDEO_FALLBACK_URL
+    ) {
+      setHasError(false);
+      setSourceUrl(SEEDED_DEMO_VIDEO_FALLBACK_URL);
+      return;
+    }
+
+    setHasError(true);
+  }
 
   return (
     <div className="space-y-3">
@@ -234,9 +255,9 @@ function ExternalVideoPlayer({
         controls
         playsInline
         className="w-full rounded-xl border border-[var(--color-border)] bg-black"
-        src={externalUrl}
+        src={sourceUrl}
         poster={posterUrl ?? undefined}
-        onError={() => setHasError(true)}
+        onError={handleVideoError}
       />
       {hasError && (
         <Notice variant="danger">
@@ -245,6 +266,14 @@ function ExternalVideoPlayer({
       )}
     </div>
   );
+}
+
+function isSeededDemoVideoUrl(value: string) {
+  try {
+    return SEEDED_DEMO_VIDEO_HOSTS.has(new URL(value).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function LessonPlaceholder() {
