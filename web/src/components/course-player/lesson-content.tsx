@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -120,12 +121,9 @@ export function LessonContent({
               posterUrl={videoContent.posterUrl}
             />
           ) : videoContent?.externalUrl ? (
-            <video
-              controls
-              playsInline
-              className="w-full rounded-xl border border-[var(--color-border)] bg-black"
-              src={videoContent.externalUrl}
-              poster={videoContent.posterUrl ?? undefined}
+            <ExternalVideoPlayer
+              externalUrl={videoContent.externalUrl}
+              posterUrl={videoContent.posterUrl}
             />
           ) : (
             <Notice>No video attached yet.</Notice>
@@ -218,6 +216,34 @@ export function LessonContent({
         )}
       </div>
     </Card>
+  );
+}
+
+function ExternalVideoPlayer({
+  externalUrl,
+  posterUrl,
+}: {
+  externalUrl: string;
+  posterUrl?: string | null;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="space-y-3">
+      <video
+        controls
+        playsInline
+        className="w-full rounded-xl border border-[var(--color-border)] bg-black"
+        src={externalUrl}
+        poster={posterUrl ?? undefined}
+        onError={() => setHasError(true)}
+      />
+      {hasError && (
+        <Notice variant="danger">
+          This external video could not be loaded. Try another video URL or upload the video to the course library.
+        </Notice>
+      )}
+    </div>
   );
 }
 
