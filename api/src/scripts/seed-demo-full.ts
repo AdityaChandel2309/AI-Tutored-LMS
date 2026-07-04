@@ -15,6 +15,8 @@
 import { CreateBucketCommand, HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { PrismaClient, Prisma, VideoStatus } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import { loadProjectEnv } from '../env';
 import {
   getStorageAccessKey,
@@ -29,6 +31,7 @@ loadProjectEnv();
 const TENANT_SUBDOMAIN = 'default';
 const DEMO_TAG = 'demo';
 const DEMO_VIDEO_PREFIX = 'demo-videos';
+const LOCAL_DEMO_VIDEO_ASSET = join(__dirname, 'assets', 'seeded-demo.mp4');
 
 type LessonSeed = {
   title: string;
@@ -513,36 +516,51 @@ async function uploadDemoVideoAsset(input: {
       cacheKey,
       (async () => {
         await ensureDemoVideoBucket();
-        const response = await fetch(input.sourceUrl, {
-          headers: { 'user-agent': 'lms-demo-seed/1.0' },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to download demo video ${input.sourceUrl}: HTTP ${response.status}`);
-        }
-
-        const body = Buffer.from(await response.arrayBuffer());
-        const mimeType = response.headers.get('content-type')?.split(';')[0] || 'video/mp4';
+        const asset = await loadDemoVideoBytes(input.sourceUrl);
 
         await getDemoVideoStorageClient().send(
           new PutObjectCommand({
             Bucket: getVideoBucket(),
             Key: objectKey,
-            Body: body,
-            ContentType: mimeType,
+            Body: asset.body,
+            ContentType: asset.mimeType,
           }),
         );
 
         return {
           objectKey,
-          sizeBytes: body.byteLength,
-          mimeType,
+          sizeBytes: asset.body.byteLength,
+          mimeType: asset.mimeType,
         };
       })(),
     );
   }
 
   return demoVideoDownloadCache.get(cacheKey)!;
+}
+
+async function loadDemoVideoBytes(sourceUrl: string) {
+  try {
+    const response = await fetch(sourceUrl, {
+      headers: { 'user-agent': 'lms-demo-seed/1.0' },
+    });
+
+    if (response.ok) {
+      return {
+        body: Buffer.from(await response.arrayBuffer()),
+        mimeType: response.headers.get('content-type')?.split(';')[0] || 'video/mp4',
+      };
+    }
+
+    console.warn(`  ! Demo video download failed (${response.status}); using bundled fallback video.`);
+  } catch (error) {
+    console.warn(`  ! Demo video download failed; using bundled fallback video. ${error instanceof Error ? error.message : ''}`);
+  }
+
+  return {
+    body: await readFile(LOCAL_DEMO_VIDEO_ASSET),
+    mimeType: 'video/mp4',
+  };
 }
 
 async function attachDemoVideo(input: {
