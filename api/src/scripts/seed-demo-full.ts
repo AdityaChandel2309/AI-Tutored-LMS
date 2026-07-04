@@ -147,7 +147,7 @@ const DEMO_COURSES: CourseSeed[] = [
             title: 'Safety Walkthrough (Video)',
             type: 'video',
             durationSec: 596,
-            videoUrl: 'https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4',
+            videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
             posterUrl: undefined,
           },
           {
