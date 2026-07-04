@@ -217,6 +217,7 @@ export class VideoService {
     videoId: string;
     userId: string;
     tenantId: string;
+    roles?: string[];
   }) {
     const video = await this.prisma.video.findFirst({
       where: {
@@ -235,6 +236,11 @@ export class VideoService {
       authUserId: input.userId,
     });
 
+    const isStaffViewer =
+      input.roles?.includes('admin') ||
+      input.roles?.includes('super_admin') ||
+      input.roles?.includes('instructor');
+
     // Verify enrollment (learners must be enrolled)
     const enrollment = await this.prisma.enrollment.findFirst({
       where: {
@@ -243,8 +249,8 @@ export class VideoService {
       },
     });
 
-    // Allow if enrolled OR if user is the uploader (instructor)
-    if (!enrollment && video.uploadedBy !== user.id) {
+    // Allow if enrolled, uploader, or staff previewing course content.
+    if (!enrollment && video.uploadedBy !== user.id && !isStaffViewer) {
       throw new ForbiddenException(
         'You must be enrolled in this course to watch videos',
       );
