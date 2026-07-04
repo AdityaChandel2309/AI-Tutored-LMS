@@ -85,6 +85,7 @@ export class VideoController {
       videoId: id,
       userId: req.user!.userId,
       tenantId: req.tenant?.id ?? '',
+      roles: req.user?.roles ?? [],
     });
   }
 
