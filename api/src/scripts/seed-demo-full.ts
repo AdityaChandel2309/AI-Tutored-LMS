@@ -19,7 +19,6 @@ import { loadProjectEnv } from '../env';
 import {
   getStorageAccessKey,
   getStorageEndpoint,
-  getStoragePublicBaseUrl,
   getStorageRegion,
   getStorageSecretKey,
   getVideoBucket,
@@ -820,11 +819,21 @@ async function main() {
               content:
                 l.type === 'text'
                   ? { body: l.body ?? '' }
-                  : l.type === 'video' && l.videoUrl
-                    ? { externalUrl: l.videoUrl, posterUrl: l.posterUrl ?? null }
-                    : Prisma.JsonNull,
+                  : Prisma.JsonNull,
             },
           });
+          if (l.type === 'video' && l.videoUrl) {
+            await attachDemoVideo({
+              prisma,
+              tenantId: tenant.id,
+              courseId: course.id,
+              courseSlug: seed.slug,
+              lessonId: lesson.id,
+              lessonTitle: l.title,
+              sourceUrl: l.videoUrl,
+              uploadedBy: ownerId,
+            });
+          }
           if (l.type === 'quiz' && l.quiz) {
             const assessment = await prisma.assessment.create({
               data: {
