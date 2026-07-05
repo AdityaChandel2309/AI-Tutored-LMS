@@ -334,7 +334,7 @@ export default function CourseCatalogPage() {
                               </Button>
                             ))}
 
-                          {canAuthor && (
+                          {canAuthor && (course.status === "draft" || course.status === "archived") && (
                             <Button
                               size="sm"
                               variant="ghost"
