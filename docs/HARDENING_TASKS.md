@@ -66,3 +66,13 @@
 | 24 | Architecture Documentation | ✅ |
 | 25 | RBAC Matrix & Module Ownership | ✅ |
 | 26 | Updated Project Context & ADRs | ✅ |
+
+## Phase 9: Pre-Submission Fixes
+
+| # | Task | Status |
+|---|------|--------|
+| 27 | Backend edit gate — instructor `PATCH /courses/:id` rejected on `review` / `published` | ✅ |
+| 28 | Course list — category multi-select chips (parity with status chips) | ✅ |
+| 29 | Course list — filter chips stay visible on empty result set | ✅ |
+| 30 | Wizard — read-only notice when opening a `published` / `review` course as instructor | ✅ |
+| 31 | Docs polish (README, ARCHITECTURE, RBAC_MATRIX, ADR) | ✅ |
