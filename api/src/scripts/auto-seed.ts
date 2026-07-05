@@ -12,6 +12,8 @@
  */
 
 import { spawnSync } from 'child_process';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { loadProjectEnv } from '../env';
@@ -50,9 +52,11 @@ async function alreadySeeded(url: string): Promise<boolean> {
 }
 
 function runScript(rel: string): void {
-  const compiled = require('path').join(__dirname, rel + '.js');
-  const fs = require('fs') as typeof import('fs');
-  const target = fs.existsSync(compiled) ? compiled : rel;
+  const target = join(__dirname, rel + '.js');
+  if (!existsSync(target)) {
+    console.warn(`▸ auto-seed: skipping (not built): ${target}`);
+    return;
+  }
   console.log(`▸ auto-seed: running ${target}`);
   const res = spawnSync(process.execPath, [target], {
     stdio: 'inherit',
