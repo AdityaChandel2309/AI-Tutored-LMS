@@ -47,10 +47,11 @@ export const courseKeys = {
 
 // ── Queries ─────────────────────────────────
 
-export function useCourses(status?: string) {
+export function useCourses(status?: string | string[]) {
+  const s = Array.isArray(status) ? status.join(',') : status;
   return useQuery<CourseSummary[]>({
-    queryKey: [...courseKeys.all, status],
-    queryFn: () => apiGet(status ? `/courses?status=${status}` : '/courses'),
+    queryKey: [...courseKeys.all, s ?? ''],
+    queryFn: () => apiGet(s ? `/courses?status=${encodeURIComponent(s)}` : '/courses'),
   });
 }
 
