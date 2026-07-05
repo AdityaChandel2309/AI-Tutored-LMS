@@ -114,7 +114,7 @@ export function AdminPanel() {
       await loadUsers();
     } catch (createError) {
       console.error(createError);
-      setError("Failed to create user");
+      setError(createError instanceof Error ? createError.message : "Failed to create user");
     } finally {
       setIsCreating(false);
     }
@@ -143,7 +143,7 @@ export function AdminPanel() {
       setMessage("Roles updated");
     } catch (updateError) {
       console.error(updateError);
-      setError("Failed to update roles");
+      setError(updateError instanceof Error ? updateError.message : "Failed to update roles");
     }
   }
 
@@ -167,7 +167,7 @@ export function AdminPanel() {
       setMessage("User deactivated");
     } catch (deactivateError) {
       console.error(deactivateError);
-      setError("Failed to deactivate user");
+      setError(deactivateError instanceof Error ? deactivateError.message : "Failed to deactivate user");
     }
   }
 
