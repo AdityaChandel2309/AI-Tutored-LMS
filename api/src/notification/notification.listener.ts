@@ -158,4 +158,108 @@ export class NotificationListener {
       );
     }
   }
+
+  @OnEvent('course.submitted_for_review')
+  async onCourseSubmittedForReview(event: {
+    type: string;
+    tenantId: string;
+    payload: { courseId: string; previousStatus?: string };
+  }) {
+    try {
+      const course = await this.prisma.course.findUnique({
+        where: { id: event.payload.courseId },
+        select: { title: true, createdBy: { select: { firstName: true, lastName: true, email: true } } },
+      });
+      if (!course) return;
+
+      // Notify every super_admin in the tenant so they can review + publish.
+      const superAdmins = await this.prisma.user.findMany({
+        where: {
+          tenantId: event.tenantId,
+          isActive: true,
+          roles: { has: 'super_admin' },
+        },
+        select: { id: true },
+      });
+
+      const author =
+        [course.createdBy?.firstName, course.createdBy?.lastName].filter(Boolean).join(' ') ||
+        course.createdBy?.email ||
+        'An instructor';
+
+      await Promise.all(
+        superAdmins.map((sa) =>
+          this.notificationService.createNotification({
+            userId: sa.id,
+            tenantId: event.tenantId,
+            type: 'course.submitted_for_review',
+            title: `Course pending review: "${course.title}"`,
+            body: `${author} submitted "${course.title}" for your review.`,
+            metadata: {
+              courseId: event.payload.courseId,
+              action: 'review',
+            },
+          }),
+        ),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to create submit-for-review notification: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  @OnEvent('course.published')
+  async onCoursePublished(event: {
+    type: string;
+    tenantId: string;
+    payload: { courseId: string };
+  }) {
+    try {
+      const course = await this.prisma.course.findUnique({
+        where: { id: event.payload.courseId },
+        select: { title: true, createdById: true },
+      });
+      if (!course?.createdById) return;
+      await this.notificationService.createNotification({
+        userId: course.createdById,
+        tenantId: event.tenantId,
+        type: 'course.published',
+        title: `Course published: "${course.title}"`,
+        body: `Your course "${course.title}" is now live.`,
+        metadata: { courseId: event.payload.courseId, action: 'view' },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to create course-published notification: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  @OnEvent('course.unpublished')
+  async onCourseUnpublished(event: {
+    type: string;
+    tenantId: string;
+    payload: { courseId: string };
+  }) {
+    try {
+      const course = await this.prisma.course.findUnique({
+        where: { id: event.payload.courseId },
+        select: { title: true, createdById: true },
+      });
+      if (!course?.createdById) return;
+      await this.notificationService.createNotification({
+        userId: course.createdById,
+        tenantId: event.tenantId,
+        type: 'course.unpublished',
+        title: `Course sent back to draft: "${course.title}"`,
+        body: `"${course.title}" was moved back to draft. Please update and resubmit.`,
+        metadata: { courseId: event.payload.courseId, action: 'edit' },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to create course-unpublished notification: ${(err as Error).message}`,
+      );
+    }
+  }
 }

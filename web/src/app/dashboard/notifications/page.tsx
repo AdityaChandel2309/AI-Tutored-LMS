@@ -7,8 +7,11 @@ import {
   Award,
   GraduationCap,
   Megaphone,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMe } from "@/lib/api/me";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +47,21 @@ const TYPE_META: Record<string, { icon: LucideIcon; tone: string; label: string 
     icon: GraduationCap,
     tone: "text-[var(--color-accent)] bg-[var(--color-accent-soft)]",
     label: "Course",
+  },
+  "course.submitted_for_review": {
+    icon: ClipboardCheck,
+    tone: "text-[var(--color-warning)] bg-[color:color-mix(in_oklch,var(--color-warning)_15%,transparent)]",
+    label: "Review",
+  },
+  "course.published": {
+    icon: GraduationCap,
+    tone: "text-[var(--color-success)] bg-[color:color-mix(in_oklch,var(--color-success)_15%,transparent)]",
+    label: "Published",
+  },
+  "course.unpublished": {
+    icon: BookOpen,
+    tone: "text-[var(--color-muted-foreground)] bg-[var(--color-muted)]",
+    label: "Draft",
   },
 };
 
@@ -84,11 +102,29 @@ function NotificationsSkeleton() {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
+  const { data: me } = useMe();
+  const isReviewer =
+    (me?.roles?.includes("super_admin") ?? false) ||
+    (me?.roles?.includes("instructor") ?? false);
   const query = useNotifications(50);
   const { data: countData } = useUnreadCount();
   const markRead = useMarkAsRead();
   const markAll = useMarkAllAsRead();
   const unread = countData?.unreadCount ?? 0;
+
+  function notificationHref(n: Notification): string | null {
+    const md = (n.metadata ?? {}) as Record<string, unknown>;
+    const courseId = typeof md.courseId === "string" ? md.courseId : null;
+    if (!courseId) return null;
+    const action = md.action;
+    // Reviewers (super_admin) & authors (instructor) go to the editor so
+    // they can review / publish. Everyone else goes to the learner view.
+    if ((action === "review" || action === "edit") && isReviewer) {
+      return `/dashboard/courses/${courseId}/edit`;
+    }
+    return `/dashboard/courses/${courseId}`;
+  }
 
   return (
     <main className="min-h-screen px-6 py-10">
@@ -132,12 +168,14 @@ export default function NotificationsPage() {
               {items.map((n) => {
                 const meta = TYPE_META[n.type] ?? DEFAULT_META;
                 const Icon = meta.icon;
+                const href = notificationHref(n);
                 return (
                   <button
                     key={n.id}
                     type="button"
                     onClick={() => {
                       if (!n.isRead) markRead.mutate(n.id);
+                      if (href) router.push(href);
                     }}
                     className={`group flex w-full items-start gap-4 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition-all duration-150 hover:border-[color:color-mix(in_oklch,var(--color-primary)_45%,var(--color-border))] hover:shadow-[var(--shadow-lift)] ${
                       !n.isRead ? "bg-[var(--color-primary-soft)]" : ""
