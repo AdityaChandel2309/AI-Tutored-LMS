@@ -3,8 +3,10 @@ import { readBackendData, relayBackendDataResponse } from "@/lib/backend-respons
 import { proxyBackendRequest } from "@/lib/server-session";
 
 export async function GET(request: Request) {
-  const response = await proxyBackendRequest("/courses", {
-    hostname: new URL(request.url).hostname,
+  const url = new URL(request.url);
+  const qs = url.search; // includes leading "?" or ""
+  const response = await proxyBackendRequest(`/courses${qs}`, {
+    hostname: url.hostname,
   });
 
   // The backend returns paginated data: { items, total, page, limit }.
