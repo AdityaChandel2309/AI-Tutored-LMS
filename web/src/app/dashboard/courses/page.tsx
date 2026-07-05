@@ -180,6 +180,23 @@ export default function CourseCatalogPage() {
           </Notice>
         )}
 
+        {/* Status Filter Tabs — always visible so users can switch filters
+            even when the current selection returns no courses. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {chipStatuses.map((status) => (
+            <button
+              key={status}
+              onClick={() => toggleStatus(status)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${statusFilter.has(status)
+                ? 'bg-[var(--color-primary)] text-white shadow-md'
+                : 'bg-[var(--color-card)] text-[var(--color-muted-foreground)] border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
+
         <AsyncBoundary
           query={coursesQuery}
           skeleton={<CatalogSkeleton />}
@@ -188,8 +205,8 @@ export default function CourseCatalogPage() {
             <Card className="p-8">
               <EmptyState
                 icon={BookOpen}
-                title="No courses available yet"
-                description="Published courses will appear here once they are created."
+                title="No courses match the selected filters"
+                description="Try selecting different status chips above."
               />
             </Card>
           }
@@ -219,22 +236,6 @@ export default function CourseCatalogPage() {
                     aria-hidden
                     className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]"
                   />
-                </div>
-
-                {/* Status Filter Tabs */}
-                <div className="flex items-center gap-2">
-                  {chipStatuses.map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => toggleStatus(status)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${statusFilter.has(status)
-                        ? 'bg-[var(--color-primary)] text-white shadow-md'
-                        : 'bg-[var(--color-card)] text-[var(--color-muted-foreground)] border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:text-[var(--color-foreground)]'
-                      }`}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
-                  ))}
                 </div>
 
                 {/* Grid */}
