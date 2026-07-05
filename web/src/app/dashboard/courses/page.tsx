@@ -51,8 +51,10 @@ function CatalogSkeleton() {
 
 export default function CourseCatalogPage() {
   const router = useRouter();
-  const [statusFilter, setStatusFilter] = useState<string>("published");
-  const coursesQuery = useCourses(statusFilter);
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(
+    () => new Set(["published"]),
+  );
+  const coursesQuery = useCourses(Array.from(statusFilter));
   const enroll = useEnroll();
   const { data: myEnrollments } = useMyEnrollments();
   const { data: me } = useMe();
@@ -62,9 +64,37 @@ export default function CourseCatalogPage() {
     message: string;
   } | null>(null);
 
-  const canAuthor =
-    me?.roles?.some((r) => r === "admin" || r === "instructor" || r === "super_admin") ?? false;
+  const isInstructor = me?.roles?.includes("instructor") ?? false;
   const isSuperAdmin = me?.roles?.includes('super_admin') ?? false;
+  const isAdmin = me?.roles?.includes('admin') ?? false;
+  const canAuthor = isInstructor; // Only instructors create courses
+
+  // Chip list depends on role:
+  //  - Instructors: Published + Draft + Review (their own drafts/reviews)
+  //  - Super-admin: Published + Review (all pending review) + Archived
+  //  - Admin:       Published + Archived
+  //  - Learner:     Published only
+  const chipStatuses: string[] = (() => {
+    const set = new Set<string>(["published"]);
+    if (isInstructor) {
+      set.add("draft");
+      set.add("review");
+    }
+    if (isSuperAdmin) set.add("review");
+    if (isSuperAdmin || isAdmin || isInstructor) set.add("archived");
+    return Array.from(set);
+  })();
+
+  function toggleStatus(status: string) {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      // Never allow an empty selection — snap back to published.
+      if (next.size === 0) next.add("published");
+      return next;
+    });
+  }
 
   const enrolledCourseIds = new Set(
     (myEnrollments ?? []).map((e) => e.courseId),
@@ -193,11 +223,11 @@ export default function CourseCatalogPage() {
 
                 {/* Status Filter Tabs */}
                 <div className="flex items-center gap-2">
-                  {(['published', 'draft', ...(isSuperAdmin ? ['review'] : [])] as const).map((status) => (
+                  {chipStatuses.map((status) => (
                     <button
                       key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${statusFilter === status
+                      onClick={() => toggleStatus(status)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${statusFilter.has(status)
                         ? 'bg-[var(--color-primary)] text-white shadow-md'
                         : 'bg-[var(--color-card)] text-[var(--color-muted-foreground)] border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:text-[var(--color-foreground)]'
                       }`}
