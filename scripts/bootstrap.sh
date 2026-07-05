@@ -39,4 +39,4 @@ run "Seeding demo content"        npm run seed:demo -- $RESET_FLAG
 run "Backfilling RAG embeddings"  npm run backfill:document-embeddings
 
 echo ""
-echo "✅ Bootstrap complete. Log in at http://localhost:3000 as admin@lms.dev / Admin@1234"
+echo "✅ Bootstrap complete. Log in at http://localhost:3001 as admin@lms.dev / Admin@1234"
