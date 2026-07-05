@@ -18,7 +18,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCourses, useEnroll, useMyEnrollments } from "@/lib/api/courses";
+import { useCourses, useEnroll, useMyEnrollments, useCategories } from "@/lib/api/courses";
 import { useMe } from "@/lib/api/me";
 import { ApiError } from "@/lib/api/client";
 import { Notice } from "@/components/ui/notice";
@@ -58,6 +58,8 @@ export default function CourseCatalogPage() {
   const enroll = useEnroll();
   const { data: myEnrollments } = useMyEnrollments();
   const { data: me } = useMe();
+  const { data: categories } = useCategories();
+  const [categoryFilter, setCategoryFilter] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [banner, setBanner] = useState<{
     variant: "success" | "warning" | "danger";
@@ -92,6 +94,15 @@ export default function CourseCatalogPage() {
       else next.add(status);
       // Never allow an empty selection — snap back to published.
       if (next.size === 0) next.add("published");
+      return next;
+    });
+  }
+
+  function toggleCategory(id: string) {
+    setCategoryFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -197,6 +208,37 @@ export default function CourseCatalogPage() {
           ))}
         </div>
 
+        {/* Category Filter Chips — multi-select, empty = all categories.
+            Kept outside the AsyncBoundary so they remain interactive when the
+            combined filter set yields no courses. */}
+        {categories && categories.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)] mr-1">
+              Categories
+            </span>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => toggleCategory(cat.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${categoryFilter.has(cat.id)
+                  ? 'bg-[var(--color-accent)] text-white shadow-md'
+                  : 'bg-[var(--color-card)] text-[var(--color-muted-foreground)] border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-foreground)]'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+            {categoryFilter.size > 0 && (
+              <button
+                onClick={() => setCategoryFilter(new Set())}
+                className="px-3 py-1.5 rounded-full text-xs font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] underline underline-offset-2"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
         <AsyncBoundary
           query={coursesQuery}
           skeleton={<CatalogSkeleton />}
@@ -213,9 +255,15 @@ export default function CourseCatalogPage() {
         >
           {(courses: CourseSummary[]) => {
             const q = search.toLowerCase().trim();
+            const byCategory =
+              categoryFilter.size === 0
+                ? courses
+                : courses.filter(
+                    (c) => c.category && categoryFilter.has(c.category.id),
+                  );
             const filtered = !q
-              ? courses
-              : courses.filter(
+              ? byCategory
+              : byCategory.filter(
                   (c) =>
                     c.title.toLowerCase().includes(q) ||
                     c.description?.toLowerCase().includes(q) ||
