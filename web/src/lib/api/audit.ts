@@ -42,6 +42,6 @@ export function useAuditLogs(filters: AuditFilters = {}) {
 
   return useQuery<AuditLogsResponse>({
     queryKey: ["audit-logs", filters],
-    queryFn: () => apiGet(`/audit${qs ? `?${qs}` : ""}`),
+    queryFn: () => apiGet(`/audit/logs${qs ? `?${qs}` : ""}`),
   });
 }
