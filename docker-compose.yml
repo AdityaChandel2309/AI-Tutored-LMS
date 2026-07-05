@@ -169,7 +169,8 @@ services:
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
-    command: ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+      AUTO_SEED_DEMO: ${AUTO_SEED_DEMO:-true}
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/src/scripts/auto-seed.js || true && node dist/src/main.js"]
     expose:
       - "3000"
     depends_on:
