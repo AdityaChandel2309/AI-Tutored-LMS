@@ -55,11 +55,14 @@ export class CourseController {
     summary: 'Get a single tenant-scoped course',
   })
   getCourse(@Request() req: TenantAwareRequest, @Param('id') id: string) {
-    return this.courseService.getCourse(req.tenant?.id ?? null, id);
+    return this.courseService.getCourseVisible(req.tenant?.id ?? null, id, {
+      authUserId: req.user?.userId,
+      roles: req.user?.roles ?? [],
+    });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'instructor')
+  @Roles('instructor')
   @Post('courses')
   @ApiOperation({
     summary: 'Create a course in the resolved tenant',
@@ -73,6 +76,7 @@ export class CourseController {
       tenantId: req.tenant?.id ?? null,
       authUserId: req.user?.userId ?? '',
       body,
+      roles: req.user?.roles ?? [],
     });
   }
 
