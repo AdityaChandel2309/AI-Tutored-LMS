@@ -170,6 +170,28 @@ export function CourseBuilderWizard({ courseId }: { courseId: string }) {
 
   const c = course;
 
+  // Instructors can only edit courses in draft or archived state.
+  // Published (and in-review) courses are read-only — send the user back.
+  if (c.status === "published" || c.status === "review") {
+    return (
+      <div className="min-h-screen px-6 py-10">
+        <div className="mx-auto max-w-5xl space-y-4">
+          <Card className="p-8">
+            <Notice variant="warning">
+              This course is {c.status} and cannot be edited. Unpublish or move it back to draft first.
+            </Notice>
+            <div className="mt-4">
+              <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/courses")}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to courses
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* ── Sidebar ── */}
