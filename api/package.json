@@ -31,6 +31,7 @@
     "backfill:document-embeddings": "node dist/src/scripts/backfill-document-embeddings.js",
     "backfill:enrollment-progress:dev": "ts-node -r tsconfig-paths/register src/scripts/backfill-enrollment-progress.ts",
     "backfill:document-embeddings:dev": "ts-node -r tsconfig-paths/register src/scripts/backfill-document-embeddings.ts",
+    "seed:auto": "node dist/src/scripts/auto-seed.js",
     "validate:deploy": "ts-node -r tsconfig-paths/register ../scripts/validate-deployment.ts",
     "validate:workflows": "ts-node -r tsconfig-paths/register ../scripts/run-workflows.ts",
     "validate:report": "ts-node -r tsconfig-paths/register ../scripts/generate-report.ts",
