@@ -129,6 +129,10 @@ bun run test:e2e                 # Playwright acceptance (requires full stack ru
 
 ## Further reading
 
+- `docs/ARCHITECTURE.md` — system overview, diagram, security layers
+- `docs/ADR.md` — architecture decision records
+- `docs/RBAC_MATRIX.md` — endpoint × role access matrix and module ownership
+- `docs/HARDENING_TASKS.md` — enterprise hardening task tracker
 - `DEPLOYMENT_RUNBOOK.md` — staging / production rollout
 - `docs/archive/` — historical phase-by-phase context and handoff notes
 - `api/prisma/schema.prisma` — canonical data model

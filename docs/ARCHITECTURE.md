@@ -13,9 +13,11 @@ The LMS is a multi-tenant enterprise learning management system built for GAIL (
 | Database | PostgreSQL |
 | Auth | Keycloak (OIDC/JWT) |
 | Storage | MinIO (S3-compatible) |
-| AI | OpenAI-compatible LLM API |
+| AI | OpenAI-compatible LLM API (chat + embeddings for RAG) |
+| Cache / Queue | Redis |
 | Containerization | Docker, Docker Compose |
 | CI | GitHub Actions |
+| Monorepo | Turborepo (workspaces: `api/`, `web/`) |
 
 ## Architecture Diagram
 
@@ -89,3 +91,48 @@ The LMS is a multi-tenant enterprise learning management system built for GAIL (
 - Request logging middleware (method, path, status, duration)
 - Error logging with stack traces
 - Audit logging (who did what, when, from where)
+
+## Domain Modules
+
+Backend modules live under `api/src/*`. Public UI lives under `web/src/app/*`.
+
+| Module | Directory | Purpose |
+|--------|-----------|---------|
+| Auth | `api/src/auth/` | Keycloak token exchange, refresh, JWT validation |
+| Tenant | `api/src/tenant/` | Subdomain-based tenant resolution middleware |
+| User | `api/src/user/` | User CRUD, role assignment |
+| Profile | `api/src/app/` | `/me`, profile updates |
+| Course | `api/src/course/` | Course lifecycle, publish workflow (draft → review → published → archived) |
+| Category | `api/src/category/` | Course categorisation |
+| Module | `api/src/module/` | Course module ordering |
+| Lesson | `api/src/lesson/` | Lesson content (video, text, quiz, SCORM, assignment) |
+| Lesson Resource | `api/src/lesson-resource/` | Downloadable per-lesson attachments (presigned MinIO) |
+| Progress | `api/src/progress/` | Enrollment progress, completion tracking |
+| Video | `api/src/video/` | Video upload URL issuance + processing |
+| SCORM | `api/src/scorm/` | SCORM package upload + runtime |
+| Assessment | `api/src/assessment/` | Question bank, attempts, grading |
+| Certificate | `api/src/certificate/` | Templates, issuance, public verification |
+| Knowledge | `api/src/knowledge/` | Enterprise document library |
+| Document Embedding | `api/src/document-embedding/` | Chunked vector embeddings for RAG |
+| Knowledge Assistant | `api/src/knowledge-assistant/` | RAG Q&A over knowledge docs with citations |
+| AI Tutor | `api/src/ai-tutor/` | Course-scoped conversational tutor |
+| Notification | `api/src/notification/` | In-app notifications + event listeners |
+| Organization | `api/src/organization/` | Departments, designations |
+| Employee | `api/src/employee/` | Employee directory + CSV import |
+| Project | `api/src/project/` | Project + milestone tracking |
+| Analytics | `api/src/analytics/` | Role-scoped dashboards, reports |
+| Audit | `api/src/audit/` | Audit log capture + query |
+| Storage | `api/src/storage/` | MinIO / S3 client abstraction |
+| Health | `api/src/health/` | Liveness + readiness probes |
+
+## Local Service Ports
+
+| Service | Port | Notes |
+|---------|------|-------|
+| Web (Next.js) | 3001 | User-facing app |
+| API (NestJS) | 3000 | REST + `/docs` Swagger |
+| PostgreSQL | 5432 | Prisma target |
+| Redis | 6379 | Cache / rate limiting (optional in dev) |
+| Keycloak | 8080 | Realm `LMS` |
+| MinIO API | 9000 | S3-compatible object storage |
+| MinIO Console | 9001 | Admin UI |

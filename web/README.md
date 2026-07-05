@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Web (`@lms/web`)
 
-## Getting Started
+Next.js 15 App Router frontend for the LMS platform. TanStack Query for data, typed API client, session cookies proxied to the NestJS API.
 
-First, run the development server:
+> **First-time setup lives in the root `../README.md`.** This file only covers day-to-day web work.
+
+## Quick start (this workspace only)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# from repo root
+npm install
+
+# from web/
+cp .env.local.example .env.local
+npm run dev                     # next dev on :3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3001>. The dev server proxies API calls to `http://localhost:3000` — start the API first (see `../api/README.md`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Common scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev                     # next dev on :3001
+npm run build                   # next build
+npm run start                   # next start (production)
+npm run lint
 
-## Learn More
+bunx tsgo --noEmit              # fast typecheck (includes Playwright specs)
+bun run test:e2e                # Playwright acceptance (requires full stack running)
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+  app/
+    login/  callback/           Keycloak sign-in
+    dashboard/                  Authenticated app shell (courses, projects, employees,
+                                knowledge, ai-tutor, analytics, audit, settings)
+    verify/[code]/              Public certificate verification page
+    api/                        Next.js Route Handlers that proxy to the NestJS API
+  components/
+    course-builder/             Wizard for course + module + lesson authoring
+    ui/                         Shared primitives (Button, Card, Field, Notice, …)
+  lib/
+    api/                        Typed fetchers per module (courses, projects, …)
+    session.ts  server-session.ts  Cookie-scoped session helpers
+    tenant.ts  auth.ts  brand.ts   Tenant + brand config
+e2e/                            Playwright specs + shared support
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Key environment variables
 
-## Deploy on Vercel
+See `.env.local.example` for the full list.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Var | Purpose |
+|-----|---------|
+| `NEXT_PUBLIC_API_BASE_URL` | Public API base (browser + SSR) |
+| `API_INTERNAL_URL` | Server-side API base for proxy Route Handlers |
+| `KEYCLOAK_BASE_URL` / `KEYCLOAK_REALM` / `KEYCLOAK_CLIENT_ID` | OIDC issuer info for the login redirect |
+| `SESSION_COOKIE_NAME` / `SESSION_SECRET` | httpOnly session cookie |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Design system
+
+Shared primitives and usage rules live in `DESIGN_SYSTEM_BASELINE.md`. Prefer those before adding one-off classes.
+
+## Further reading
+
+- `../README.md` — repo entry point + Quickstart
+- `../docs/ARCHITECTURE.md` — system diagram
+- `../docs/RBAC_MATRIX.md` — what each role can do
+- `DESIGN_SYSTEM_BASELINE.md` — shared UI primitives
