@@ -326,8 +326,10 @@ export class CourseService {
     tenantId: string | null;
     courseId: string;
     body: UpdateCourseDto;
+    authUserId?: string;
+    roles?: string[];
   }) {
-    const { tenantId, courseId, body } = input;
+    const { tenantId, courseId, body, authUserId, roles = [] } = input;
 
     if (!tenantId) {
       throw new ForbiddenException('Tenant could not be resolved');
@@ -342,6 +344,30 @@ export class CourseService {
 
     if (!course) {
       throw new NotFoundException('Course not found in current tenant');
+    }
+
+    // Instructor-only callers may not edit published or in-review courses.
+    // Admin / super_admin bypass this restriction (they own workflow transitions).
+    const isAdmin = roles.includes('admin') || roles.includes('super_admin');
+    const isInstructor = roles.includes('instructor');
+    if (!isAdmin && isInstructor) {
+      if (course.status === 'published' || course.status === 'review') {
+        throw new ForbiddenException(
+          `Cannot edit a course that is ${course.status}. Move it back to draft first.`,
+        );
+      }
+      // Instructors may only edit their own courses.
+      if (authUserId) {
+        const dbUser = await this.prisma.user.findFirst({
+          where: { keycloakId: authUserId, tenantId },
+          select: { id: true },
+        });
+        if (!dbUser || course.createdById !== dbUser.id) {
+          throw new ForbiddenException(
+            'Instructors can only edit their own courses',
+          );
+        }
+      }
     }
 
     const nextSlug = body.slug?.trim();
