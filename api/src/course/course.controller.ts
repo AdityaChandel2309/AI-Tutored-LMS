@@ -96,6 +96,8 @@ export class CourseController {
       tenantId: req.tenant?.id ?? null,
       courseId: id,
       body,
+      authUserId: req.user?.userId ?? '',
+      roles: req.user?.roles ?? [],
     });
   }
 
