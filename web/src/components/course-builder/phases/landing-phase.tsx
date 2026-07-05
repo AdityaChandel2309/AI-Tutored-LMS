@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
 import { useCourseWorkflow } from "@/lib/api/courses";
+import { useMe } from "@/lib/api/me";
 import { CertificateTemplateEditor } from "@/components/certificate/certificate-template-editor";
 import type { Course, CourseModule } from "@/lib/types/course";
 
@@ -64,6 +65,8 @@ export function LandingPhase({ course }: { course: Course }) {
   } | null>(null);
 
   const workflow = useCourseWorkflow(course.id);
+  const { data: me } = useMe();
+  const isSuperAdmin = me?.roles?.includes("super_admin") ?? false;
 
   function handleWorkflowAction(
     action: "submit-review" | "publish" | "archive" | "unpublish",
@@ -104,7 +107,8 @@ export function LandingPhase({ course }: { course: Course }) {
   }
 
   const canSubmitReview = course.status === "draft";
-  const canPublish = course.status === "review";
+  // Only super_admin may publish; the button is hidden for everyone else.
+  const canPublish = course.status === "review" && isSuperAdmin;
   const canArchive = course.status === "published";
   const canUnpublish = course.status === "review" || course.status === "archived";
   const checklist = getCourseChecklist(course);
