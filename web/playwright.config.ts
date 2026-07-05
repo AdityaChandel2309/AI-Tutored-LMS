@@ -4,12 +4,16 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   retries: 0,
+  timeout: 60_000,
   use: {
     baseURL: "http://127.0.0.1:3001",
     trace: "retain-on-failure",
     channel: undefined,
     launchOptions: {
-      executablePath: "/usr/bin/chromium-browser",
+      // Use Playwright-managed Chromium; fall back to system binary if present.
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+        ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+        : {}),
     },
   },
   projects: [
