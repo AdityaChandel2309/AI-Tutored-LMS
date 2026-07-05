@@ -61,7 +61,7 @@ export function ProfilePanel({
       setMessage("Profile updated");
     } catch (saveError) {
       console.error(saveError);
-      setError("Failed to update profile");
+      setError(saveError instanceof Error ? saveError.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
     }
@@ -93,7 +93,7 @@ export function ProfilePanel({
       event.target.value = "";
     } catch (uploadError) {
       console.error(uploadError);
-      setError("Failed to upload avatar");
+      setError(uploadError instanceof Error ? uploadError.message : "Failed to upload avatar");
     } finally {
       setIsUploading(false);
     }
