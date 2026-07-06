@@ -29,8 +29,17 @@ export class KnowledgeAssistantService {
     const user = await this.prisma.user.findFirst({ where: { keycloakId: authUserId, tenantId } });
     if (!user) throw new ForbiddenException('User not found');
 
-    // Semantic search for relevant documents via vector embeddings
-    const results = await this.embeddingService.searchSimilar(tenantId, question, 5, categoryId);
+    // Role-scoped semantic search. Admins see any non-archived document
+    // (drafts + in-review + published). Everyone else is limited to
+    // published documents so unfinished internal content doesn't leak.
+    const isAdmin = roles.includes('admin') || roles.includes('super_admin');
+    const results = await this.embeddingService.searchSimilar(
+      tenantId,
+      question,
+      5,
+      categoryId,
+      isAdmin,
+    );
 
     const relevantDocs = results.map((r) => ({
       id: r.documentId,
@@ -46,7 +55,6 @@ export class KnowledgeAssistantService {
 
     // Live platform data — ADMIN ONLY. Non-admins never receive this context,
     // so the assistant cannot answer org-wide operational questions for them.
-    const isAdmin = roles.includes('admin') || roles.includes('super_admin');
     const platformContext = isAdmin
       ? await this.platformContext.buildAdminContext(tenantId)
       : '';
