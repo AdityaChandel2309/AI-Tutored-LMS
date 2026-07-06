@@ -1,6 +1,6 @@
 # Signing in locally
 
-> **The Lovable preview cannot sign you in.** This project is a Next.js + NestJS + Keycloak + Postgres monorepo. The Lovable sandbox runs a single Vite app on port 8080 only — it does not host the Next.js frontend, the NestJS API, Keycloak, or Postgres. Every sign-in attempt in the preview will fail because the backend it needs is not running there. Run it locally (or deploy per `DEPLOYMENT_RUNBOOK.md`) to actually authenticate.
+> **Hosted browser previews cannot sign you in.** This project is a Next.js + NestJS + Keycloak + Postgres monorepo. A single-container browser preview does not host the Next.js frontend, the NestJS API, Keycloak, or Postgres, so every sign-in attempt there will fail because the backend it needs is not running. Run it locally (or deploy per `DEPLOYMENT_RUNBOOK.md`) to actually authenticate.
 
 ## One-time setup
 

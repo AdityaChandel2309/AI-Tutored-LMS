@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Assemble a root-level `dist/` directory so Lovable's post-build
+ * Assemble a root-level `dist/` directory so the platform's post-build
  * `dist-check` finds an artifact.
  *
  * This monorepo produces build output in two places:

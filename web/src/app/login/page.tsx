@@ -29,7 +29,10 @@ function PreviewNotice() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const host = window.location.hostname;
-    setIsPreview(host.endsWith('.lovable.app') || host.endsWith('.lovable.dev'));
+    setIsPreview(
+      host.endsWith('.lovable.app') ||
+        host.endsWith('.lovable.dev'),
+    );
   }, []);
 
   if (!isPreview) return null;
@@ -39,7 +42,7 @@ function PreviewNotice() {
       <p className="font-semibold">Sign-in is disabled in this preview.</p>
       <p className="mt-1 leading-relaxed text-amber-900/85">
         This app needs its NestJS API, Keycloak, and Postgres — none of which
-        run in the Lovable sandbox. Clone the repo and follow{' '}
+        run in this hosted preview. Clone the repo and follow{' '}
         <code className="rounded bg-amber-100 px-1 py-0.5 text-[12px]">LOCAL_SIGNIN.md</code>{' '}
         to sign in locally.
       </p>
