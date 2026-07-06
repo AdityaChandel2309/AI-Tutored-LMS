@@ -426,6 +426,20 @@ export class KnowledgeService {
       );
     }
 
+    // Wipe any prior chunks so re-index / backfill actually replaces
+    // stale metadata-only chunks (e.g. docs uploaded before body
+    // extraction was wired up). `indexDocuments` short-circuits when
+    // chunks already exist, so we must clear them here.
+    try {
+      await this.prisma.$executeRaw`
+        DELETE FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
+      `;
+    } catch (err) {
+      this.logger.warn(
+        `Failed to clear existing chunks for document ${doc.id}: ${(err as Error).message}`,
+      );
+    }
+
     try {
       await this.embeddingService.indexDocuments(tenantId, [
         {
@@ -443,11 +457,35 @@ export class KnowledgeService {
   }
 
   /**
+   * Force-reindex a single document. Used by the admin reindex endpoint
+   * so previously-uploaded docs can pick up body text extraction.
+   */
+  async reindexDocument(tenantId: string | null, id: string) {
+    if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
+    const doc = await this.prisma.document.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        fileObjectKey: true,
+        mimeType: true,
+      },
+    });
+    if (!doc) throw new NotFoundException('Document not found');
+    await this.indexWithExtractedText(tenantId, doc);
+    return { ok: true, documentId: id };
+  }
+
+  /**
    * Backfill helper — reindex every document in a tenant that has no chunks
    * yet, extracting body text where possible. Used by
    * `scripts/backfill-document-embeddings.ts`.
    */
-  async backfillEmbeddings(tenantId: string): Promise<{ scanned: number; indexed: number }> {
+  async backfillEmbeddings(
+    tenantId: string,
+    opts: { force?: boolean } = {},
+  ): Promise<{ scanned: number; indexed: number }> {
     const docs = await this.prisma.document.findMany({
       where: { tenantId, status: { not: 'archived' } },
       select: {
@@ -461,10 +499,12 @@ export class KnowledgeService {
 
     let indexed = 0;
     for (const doc of docs) {
-      const existing = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*)::bigint as count FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
-      `;
-      if (existing[0]?.count && existing[0].count > 0n) continue;
+      if (!opts.force) {
+        const existing = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*)::bigint as count FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
+        `;
+        if (existing[0]?.count && existing[0].count > 0n) continue;
+      }
 
       await this.indexWithExtractedText(tenantId, doc);
       indexed++;

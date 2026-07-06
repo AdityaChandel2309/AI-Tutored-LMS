@@ -92,6 +92,24 @@ export class KnowledgeController {
     return this.knowledgeService.deleteDocument(req.tenant?.id ?? null, id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Post('documents/:id/reindex')
+  @ApiOperation({ summary: 'Force re-extract text and rebuild embeddings for a document' })
+  reindexDocument(@Request() req: TenantAwareRequest, @Param('id') id: string) {
+    return this.knowledgeService.reindexDocument(req.tenant?.id ?? null, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Post('documents/reindex-all')
+  @ApiOperation({ summary: 'Force re-extract text and rebuild embeddings for every document' })
+  reindexAll(@Request() req: TenantAwareRequest) {
+    const tenantId = req.tenant?.id;
+    if (!tenantId) return { ok: false, error: 'Tenant not resolved' };
+    return this.knowledgeService.backfillEmbeddings(tenantId, { force: true });
+  }
+
   // ─── Categories ────────────────────────────
 
   @UseGuards(JwtAuthGuard)
