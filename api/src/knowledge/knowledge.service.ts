@@ -25,6 +25,8 @@ const ALLOWED_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
 ];
 
 @Injectable()
@@ -173,11 +175,9 @@ export class KnowledgeService {
       payload: { documentId: doc.id, title: doc.title },
     });
 
-    // Index document for semantic search (non-blocking)
-    // Extract body text (PDF / text formats) so retrieval can match on
-    // real content, not just title + description. Metadata-only fallback
-    // when extraction is unsupported (Office docs) or fails.
-    void this.indexWithExtractedText(tenantId, {
+    // Index immediately so the assistant can answer from this document as soon
+    // as upload returns. This extracts real body text, not just metadata.
+    await this.indexWithExtractedText(tenantId, {
       id: doc.id,
       title: doc.title,
       description: doc.description ?? null,
@@ -199,7 +199,7 @@ export class KnowledgeService {
     });
     if (!doc) throw new NotFoundException('Document not found');
 
-    return this.prisma.document.update({
+    const updated = await this.prisma.document.update({
       where: { id },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -210,6 +210,22 @@ export class KnowledgeService {
         ...(dto.status !== undefined && { status: dto.status }),
       },
     });
+
+    if (
+      dto.title !== undefined ||
+      dto.description !== undefined ||
+      dto.status !== undefined
+    ) {
+      await this.indexWithExtractedText(tenantId, {
+        id: updated.id,
+        title: updated.title,
+        description: updated.description,
+        fileObjectKey: updated.fileObjectKey,
+        mimeType: updated.mimeType,
+      });
+    }
+
+    return updated;
   }
 
   async uploadVersion(
@@ -251,7 +267,7 @@ export class KnowledgeService {
       },
     });
 
-    return this.prisma.document.update({
+    const updated = await this.prisma.document.update({
       where: { id },
       data: {
         version: newVersion,
@@ -261,6 +277,17 @@ export class KnowledgeService {
         mimeType: file.mimetype,
       },
     });
+
+    // A new version changes the file body, so rebuild chunks immediately.
+    await this.indexWithExtractedText(tenantId, {
+      id: updated.id,
+      title: updated.title,
+      description: updated.description,
+      fileObjectKey: updated.fileObjectKey,
+      mimeType: updated.mimeType,
+    });
+
+    return updated;
   }
 
   async getDownloadUrl(tenantId: string | null, id: string) {
@@ -424,6 +451,7 @@ export class KnowledgeService {
       this.logger.warn(
         `Text extraction failed for document ${doc.id}: ${(err as Error).message}`,
       );
+      bodyText = await this.readExistingChunkText(doc.id);
     }
 
     // Wipe any prior chunks so re-index / backfill actually replaces
@@ -475,6 +503,23 @@ export class KnowledgeService {
     if (!doc) throw new NotFoundException('Document not found');
     await this.indexWithExtractedText(tenantId, doc);
     return { ok: true, documentId: id };
+  }
+
+  private async readExistingChunkText(documentId: string): Promise<string | null> {
+    try {
+      const chunks = await this.prisma.documentChunk.findMany({
+        where: { documentId },
+        orderBy: { chunkIndex: 'asc' },
+        select: { chunkText: true },
+      });
+      const text = chunks.map((c) => c.chunkText).join('\n\n').trim();
+      return text.length > 0 ? text : null;
+    } catch (err) {
+      this.logger.warn(
+        `Failed to read existing chunks for document ${documentId}: ${(err as Error).message}`,
+      );
+      return null;
+    }
   }
 
   /**
