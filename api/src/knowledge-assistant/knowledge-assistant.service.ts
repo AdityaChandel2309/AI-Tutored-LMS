@@ -42,7 +42,7 @@ export class KnowledgeAssistantService {
 
     const docContext = relevantDocs.length > 0
       ? results.map((r) => `- "${r.title}": ${r.chunkText}`).join('\n')
-      : 'No relevant documents found.';
+      : 'No documents in the tenant knowledge base matched this query. Tell the user no matching document was found rather than speculating.';
 
     // Live platform data — ADMIN ONLY. Non-admins never receive this context,
     // so the assistant cannot answer org-wide operational questions for them.
