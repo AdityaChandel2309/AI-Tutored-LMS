@@ -482,7 +482,10 @@ export class KnowledgeService {
    * yet, extracting body text where possible. Used by
    * `scripts/backfill-document-embeddings.ts`.
    */
-  async backfillEmbeddings(tenantId: string): Promise<{ scanned: number; indexed: number }> {
+  async backfillEmbeddings(
+    tenantId: string,
+    opts: { force?: boolean } = {},
+  ): Promise<{ scanned: number; indexed: number }> {
     const docs = await this.prisma.document.findMany({
       where: { tenantId, status: { not: 'archived' } },
       select: {
@@ -496,10 +499,12 @@ export class KnowledgeService {
 
     let indexed = 0;
     for (const doc of docs) {
-      const existing = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*)::bigint as count FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
-      `;
-      if (existing[0]?.count && existing[0].count > 0n) continue;
+      if (!opts.force) {
+        const existing = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*)::bigint as count FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
+        `;
+        if (existing[0]?.count && existing[0].count > 0n) continue;
+      }
 
       await this.indexWithExtractedText(tenantId, doc);
       indexed++;
