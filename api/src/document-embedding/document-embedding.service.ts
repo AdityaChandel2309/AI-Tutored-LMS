@@ -135,19 +135,26 @@ export class DocumentEmbeddingService {
     query: string,
     topK = 5,
     categoryId?: string,
+    /**
+     * Privacy scope. Admins can retrieve any non-archived document (drafts,
+     * in-review, published). Everyone else is restricted to `published`
+     * documents so unfinished/internal drafts don't leak via the assistant.
+     */
+    isAdmin = false,
   ): Promise<SearchResult[]> {
     const { embedding, usedFallback } = await this.llm.embed(query);
 
     if (usedFallback || embedding.length === 0) {
       this.logger.warn('Embedding failed, falling back to keyword search');
-      return this.keywordSearch(tenantId, query, topK, categoryId);
+      return this.keywordSearch(tenantId, query, topK, categoryId, isAdmin);
     }
 
     const vectorStr = `[${embedding.join(',')}]`;
 
     try {
       const rows = await (categoryId
-        ? this.prisma.$queryRaw<Array<Record<string, unknown>>>`
+        ? (isAdmin
+          ? this.prisma.$queryRaw<Array<Record<string, unknown>>>`
             SELECT
               c."id" as "chunkId",
               c."documentId",
@@ -165,7 +172,26 @@ export class DocumentEmbeddingService {
             ORDER BY c."embedding" <=> ${vectorStr}::vector
             LIMIT ${topK}
           `
-        : this.prisma.$queryRaw<Array<Record<string, unknown>>>`
+          : this.prisma.$queryRaw<Array<Record<string, unknown>>>`
+            SELECT
+              c."id" as "chunkId",
+              c."documentId",
+              d."title",
+              d."description",
+              d."fileName",
+              c."chunkText",
+              c."chunkIndex",
+              1 - (c."embedding" <=> ${vectorStr}::vector) as "score"
+            FROM "DocumentChunk" c
+            JOIN "Document" d ON d."id" = c."documentId"
+            WHERE c."tenantId" = ${tenantId}
+              AND d."status" = 'published'
+              AND d."categoryId" = ${categoryId}
+            ORDER BY c."embedding" <=> ${vectorStr}::vector
+            LIMIT ${topK}
+          `)
+        : (isAdmin
+          ? this.prisma.$queryRaw<Array<Record<string, unknown>>>`
             SELECT
               c."id" as "chunkId",
               c."documentId",
@@ -182,6 +208,23 @@ export class DocumentEmbeddingService {
             ORDER BY c."embedding" <=> ${vectorStr}::vector
             LIMIT ${topK}
           `
+          : this.prisma.$queryRaw<Array<Record<string, unknown>>>`
+            SELECT
+              c."id" as "chunkId",
+              c."documentId",
+              d."title",
+              d."description",
+              d."fileName",
+              c."chunkText",
+              c."chunkIndex",
+              1 - (c."embedding" <=> ${vectorStr}::vector) as "score"
+            FROM "DocumentChunk" c
+            JOIN "Document" d ON d."id" = c."documentId"
+            WHERE c."tenantId" = ${tenantId}
+              AND d."status" = 'published'
+            ORDER BY c."embedding" <=> ${vectorStr}::vector
+            LIMIT ${topK}
+          `)
       );
 
       if (rows.length > 0) return rows as unknown as SearchResult[];
@@ -189,7 +232,7 @@ export class DocumentEmbeddingService {
       this.logger.warn(`Vector search failed: ${(err as Error).message}, falling back to keyword search`);
     }
 
-    return this.keywordSearch(tenantId, query, topK, categoryId);
+    return this.keywordSearch(tenantId, query, topK, categoryId, isAdmin);
   }
 
   private async keywordSearch(
@@ -197,11 +240,14 @@ export class DocumentEmbeddingService {
     query: string,
     topK: number,
     categoryId?: string,
+    isAdmin = false,
   ): Promise<SearchResult[]> {
     const words = query.split(/\s+/).filter((w) => w.length > 2).slice(0, 5).join(' & ');
     if (!words) return [];
 
-    const where: Record<string, unknown> = { tenantId, status: { not: 'archived' } };
+    const where: Record<string, unknown> = isAdmin
+      ? { tenantId, status: { not: 'archived' } }
+      : { tenantId, status: 'published' };
     if (categoryId) where.categoryId = categoryId;
 
     const docs = await this.prisma.document.findMany({
