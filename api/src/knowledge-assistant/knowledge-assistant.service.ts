@@ -14,6 +14,14 @@ const MAX_CONTEXT_CHARS_PER_DOC = 9000;
 const FALLBACK_EXCERPT_CHARS = 4500;
 const DIRECT_DOC_SUMMARY_CHARS = 6000;
 
+type ContextDocument = {
+  id: string;
+  title: string;
+  description: string | null;
+  fileName: string;
+  chunks: Array<{ chunkText: string }>;
+};
+
 @Injectable()
 export class KnowledgeAssistantService {
   private readonly logger = new Logger(KnowledgeAssistantService.name);
@@ -205,7 +213,7 @@ export class KnowledgeAssistantService {
           select: { chunkText: true },
         },
       },
-    });
+    }) as ContextDocument[];
 
     const byId = new Map(documents.map((doc) => [doc.id, doc]));
 
