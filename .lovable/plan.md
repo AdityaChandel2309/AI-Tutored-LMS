@@ -1,45 +1,43 @@
+# Why the assistant "doesn't know" your uploaded doc
 
-# Docs Polish Plan
+Root cause (verified in code):
 
-Goal: make the repo read cleanly and completely when your senior opens it tomorrow. Documentation only — no code changes.
+- `api/src/knowledge/knowledge.service.ts` creates every uploaded document with `status: dto.status ?? 'draft'`.
+- `api/src/document-embedding/document-embedding.service.ts` — both `searchSimilar` (vector) and `keywordSearch` (fallback) hard-filter `WHERE d."status" = 'published'`.
 
-## Files to update
+Result: a freshly uploaded doc is embedded and stored, but the assistant's retrieval query skips it because it is still `draft`. That's why "tell me more about cs" returns "I couldn't find any specific information…" even though the file is in the knowledge base.
 
-1. **Root `README.md`** — rewrite as the true entry point:
-   - One-paragraph pitch (multi-tenant enterprise LMS for GAIL)
-   - Tech stack table
-   - Repo layout (`api/`, `web/`, `docs/`, `scripts/`, `docker-compose.yml`, `keycloak/`)
-   - Quick start: `npm run bootstrap` → `docker-compose up` → `npm run dev` → service URLs (web 3001, api 3000, Keycloak, MinIO)
-   - Default demo credentials (from seed scripts)
-   - Links to `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/RBAC_MATRIX.md`, `DEPLOYMENT_RUNBOOK.md`
+This is the same reason the upload screen warned you the doc wouldn't show up on the Knowledge Base list — the assistant is on the same `published`-only gate.
 
-2. **`docs/ARCHITECTURE.md`** — accuracy pass:
-   - Verify tech-stack table matches `package.json` versions
-   - Add modules missing from the list: `category`, `lesson-resource`, `document-embedding`, `knowledge-assistant`
-   - Confirm ports/service names match `docker-compose.yml`
+# Fix
 
-3. **`docs/RBAC_MATRIX.md`** — reflect recent changes:
-   - Add `super_admin` column (course publish workflow)
-   - Add rows for `submit-review`, `publish`, `archive`, `unpublish`
-   - Note new backend guard: instructor PATCH only on `draft` or `archived`
-   - Add `category` endpoints row
+Widen the retrieval filter so the assistant can read any tenant-scoped document that isn't archived, while still respecting tenant isolation and category scoping.
 
-4. **`docs/ADR.md`** — two short ADRs in the existing format:
-   - **ADR-008**: Course publish workflow with `super_admin` gate
-   - **ADR-009**: Multi-select status + category filter UX for course list
+### 1. `api/src/document-embedding/document-embedding.service.ts`
 
-5. **`docs/HARDENING_TASKS.md`** — append a "Pre-submission fixes" section marking backend edit gate and category chips ✅.
+- In both branches of `searchSimilar` (categoryId + no-categoryId), replace `AND d."status" = 'published'` with `AND d."status" <> 'archived'`.
+- In `keywordSearch`, apply the same change so the fallback path behaves identically.
 
-6. **`api/README.md` + `web/README.md`** — trim to a focused per-package quick start: install, dev, test, build, key env vars, pointer to root docs.
+### 2. `api/src/knowledge-assistant/knowledge-assistant.service.ts`
 
-## Out of scope
+- When `results.length === 0`, add a short `docContext` note that tells the model "no documents in the tenant knowledge base matched this query" — so answers say that explicitly instead of vaguely guessing from platform data.
 
-- No code, config, migrations, or CI changes
-- No screenshots
-- No rewrites of ADR-001..007 or `docs/adr/001-*`, `002-*`
-- No edits to `DEPLOYMENT_RUNBOOK.md` / `docs/DEPLOYMENT.md` beyond a link check
-- `docs/archive/*` left untouched
+### 3. `api/src/common/ai/prompt-templates.ts`
 
-## Deliverable
+- In `buildKnowledgeAssistantSystemPrompt`, add one line: when the user asks about a topic/name and no document context is available, the assistant should say it can't find a matching document in the knowledge base and suggest the user check the document title / re-upload, instead of speculating from department/course lists.
 
-Seven files updated. After apply I'll list each file changed with a one-line summary so you can skim before the demo.
+### 4. Sanity check on existing uploads
+
+- After the code change, previously uploaded drafts already have embeddings (indexing runs unconditionally on upload), so no backfill is needed — they become searchable immediately.
+- If a specific old doc has no chunks (e.g. upload happened before embeddings were wired), the existing `api/src/scripts/backfill-document-embeddings.ts` script covers it; call that out to the user only if their doc still isn't found after the fix.
+
+# Out of scope
+
+- No changes to auth, RBAC, tenant scoping, upload flow, or the assistant UI.
+- No schema changes.
+- Admin platform snapshot and per-user self-scoped context stay exactly as they are.
+
+# Verification
+
+- `npx tsgo --noEmit` in `api/` stays clean.
+- Manually: upload a new document (leaves it as `draft`), ask the assistant about a term that appears in that doc, confirm the answer cites the doc and the `sources` array in the response includes it.

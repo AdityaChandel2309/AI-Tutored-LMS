@@ -160,7 +160,7 @@ export class DocumentEmbeddingService {
             FROM "DocumentChunk" c
             JOIN "Document" d ON d."id" = c."documentId"
             WHERE c."tenantId" = ${tenantId}
-              AND d."status" = 'published'
+              AND d."status" <> 'archived'
               AND d."categoryId" = ${categoryId}
             ORDER BY c."embedding" <=> ${vectorStr}::vector
             LIMIT ${topK}
@@ -178,7 +178,7 @@ export class DocumentEmbeddingService {
             FROM "DocumentChunk" c
             JOIN "Document" d ON d."id" = c."documentId"
             WHERE c."tenantId" = ${tenantId}
-              AND d."status" = 'published'
+              AND d."status" <> 'archived'
             ORDER BY c."embedding" <=> ${vectorStr}::vector
             LIMIT ${topK}
           `
@@ -201,7 +201,7 @@ export class DocumentEmbeddingService {
     const words = query.split(/\s+/).filter((w) => w.length > 2).slice(0, 5).join(' & ');
     if (!words) return [];
 
-    const where: Record<string, unknown> = { tenantId, status: 'published' };
+    const where: Record<string, unknown> = { tenantId, status: { not: 'archived' } };
     if (categoryId) where.categoryId = categoryId;
 
     const docs = await this.prisma.document.findMany({
