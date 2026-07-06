@@ -43,7 +43,7 @@ A multi-tenant Learning Management System with courses, assessments, certificate
 
 LMS Platform is an enterprise-grade, multi-tenant learning and knowledge system. It combines classic LMS building blocks (courses, modules, lessons, quizzes, SCORM, certificates) with modern workforce features (projects, org structure, notifications, audit log) and an AI Knowledge Assistant that answers questions from your uploaded documents using retrieval-augmented generation.
 
-> ⚠️ The Lovable sandbox preview cannot run this app end-to-end (multi-service). Run it locally with Docker as described below, or deploy per [`DEPLOYMENT_RUNBOOK.md`](./DEPLOYMENT_RUNBOOK.md).
+> ⚠️ This is a multi-service app and cannot run inside a single-container browser preview. Run it locally with Docker as described below, or deploy per [`DEPLOYMENT_RUNBOOK.md`](./DEPLOYMENT_RUNBOOK.md).
 
 ---
 
