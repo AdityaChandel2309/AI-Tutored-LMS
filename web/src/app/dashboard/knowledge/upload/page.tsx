@@ -17,7 +17,10 @@ export default function KnowledgeUploadPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [form, setForm] = useState({ title: "", description: "", type: "policy", categoryId: "", tags: "", status: "draft" });
+  // Default to "published" so the uploaded document is immediately visible in
+  // the Knowledge Base list (which filters by status=published). Authors can
+  // still switch to Draft below when they want to stage a document.
+  const [form, setForm] = useState({ title: "", description: "", type: "policy", categoryId: "", tags: "", status: "published" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
