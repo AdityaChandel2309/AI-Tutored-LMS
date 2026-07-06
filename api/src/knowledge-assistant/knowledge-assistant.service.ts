@@ -11,6 +11,7 @@ const SPARSE_CHUNK_CHAR_THRESHOLD = 350;
 const MAX_CONTEXT_DOCS = 3;
 const MAX_CHUNKS_PER_CONTEXT_DOC = 6;
 const MAX_CONTEXT_CHARS_PER_DOC = 9000;
+const FALLBACK_EXCERPT_CHARS = 4500;
 
 @Injectable()
 export class KnowledgeAssistantService {
@@ -126,8 +127,12 @@ export class KnowledgeAssistantService {
       data: { tenantId, userId: user.id, role: 'user', content: userMessage, sourceDocIds: [] },
     });
 
-    // Call LLM with token trimming and fallback
-    const result = await this.llm.chat({ messages }, KNOWLEDGE_FALLBACK);
+    const contextualFallback = this.buildContextualFallbackAnswer(docContext, relevantDocs);
+
+    // Call LLM with token trimming and fallback. If the model provider is down
+    // or misconfigured, still answer from the retrieved document excerpts so
+    // users can read what is inside the knowledge-base file.
+    const result = await this.llm.chat({ messages }, contextualFallback);
 
     if (result.usedFallback) {
       this.logger.warn('Knowledge assistant used fallback response');
@@ -209,6 +214,41 @@ export class KnowledgeAssistantService {
       })
       .filter(Boolean)
       .join('\n\n');
+  }
+
+  private buildContextualFallbackAnswer(
+    documentContext: string,
+    docs: Array<{ title: string; fileName: string; description: string | null }>,
+  ): string {
+    const normalizedContext = documentContext.trim();
+    if (!docs.length || !normalizedContext || normalizedContext.startsWith('No documents in the tenant')) {
+      return KNOWLEDGE_FALLBACK;
+    }
+
+    if (normalizedContext.includes('No extractable body text is available for this document.')) {
+      const docList = docs.map((doc) => `- ${doc.title} (${doc.fileName})`).join('\n');
+      return [
+        'I found the matching document, but its body text has not been extracted yet, so I cannot accurately summarize what is inside it.',
+        '',
+        'Matching document:',
+        docList,
+        '',
+        'Please reindex or re-upload the document so its contents can be read by the assistant.',
+      ].join('\n');
+    }
+
+    const excerpt = normalizedContext.slice(0, FALLBACK_EXCERPT_CHARS).trim();
+    const sourceList = docs.map((doc) => `- ${doc.title} (${doc.fileName})`).join('\n');
+
+    return [
+      'I found the matching knowledge-base document. The AI answer generator is unavailable right now, so here is the retrieved content from the document instead:',
+      '',
+      excerpt,
+      normalizedContext.length > FALLBACK_EXCERPT_CHARS ? '\n[Excerpt truncated]' : '',
+      '',
+      'Sources:',
+      sourceList,
+    ].filter(Boolean).join('\n');
   }
 
   async getHistory(tenantId: string | null, authUserId: string) {
