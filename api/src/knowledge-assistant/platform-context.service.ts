@@ -21,6 +21,9 @@ export class PlatformContextService {
   private static readonly MAX_PROJECTS = 25;
   private static readonly MAX_EMPLOYEES = 25;
   private static readonly MAX_COURSES = 25;
+  private static readonly MAX_DOCUMENTS = 30;
+  private static readonly MAX_CATEGORIES = 20;
+  private static readonly MAX_MILESTONES = 15;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -174,6 +177,14 @@ export class PlatformContextService {
         certificateTotal,
         departments,
         designations,
+        recentEmployees,
+        documentStatusCounts,
+        recentDocuments,
+        knowledgeCategories,
+        recentMilestones,
+        recentEnrollments,
+        recentCertificates,
+        tenant,
       ] = await Promise.all([
         this.prisma.project.groupBy({
           by: ['status'],
@@ -232,6 +243,90 @@ export class PlatformContextService {
           where: { tenantId },
           select: { id: true, name: true, level: true },
         }),
+        this.prisma.employeeProfile.findMany({
+          where: { tenantId },
+          orderBy: { updatedAt: 'desc' },
+          take: PlatformContextService.MAX_EMPLOYEES,
+          select: {
+            employeeCode: true,
+            location: true,
+            dateOfJoining: true,
+            user: { select: { firstName: true, lastName: true, email: true, isActive: true } },
+            department: { select: { name: true } },
+            designation: { select: { name: true, level: true } },
+            reportingManager: { select: { firstName: true, lastName: true, email: true } },
+          },
+        }),
+        this.prisma.document.groupBy({
+          by: ['status'],
+          where: { tenantId },
+          _count: { _all: true },
+        }),
+        this.prisma.document.findMany({
+          where: { tenantId, status: { not: 'archived' } },
+          orderBy: { updatedAt: 'desc' },
+          take: PlatformContextService.MAX_DOCUMENTS,
+          select: {
+            title: true,
+            status: true,
+            type: true,
+            fileName: true,
+            tags: true,
+            updatedAt: true,
+            category: { select: { name: true } },
+            uploadedBy: { select: { firstName: true, lastName: true, email: true } },
+          },
+        }),
+        this.prisma.documentCategory.findMany({
+          where: { tenantId },
+          orderBy: { name: 'asc' },
+          take: PlatformContextService.MAX_CATEGORIES,
+          select: { name: true, _count: { select: { documents: true } } },
+        }),
+        this.prisma.milestone.findMany({
+          where: { project: { tenantId } },
+          orderBy: { createdAt: 'desc' },
+          take: PlatformContextService.MAX_MILESTONES,
+          select: {
+            title: true,
+            status: true,
+            dueDate: true,
+            completedAt: true,
+            project: { select: { title: true } },
+          },
+        }),
+        this.prisma.enrollment.findMany({
+          where: { course: { tenantId } },
+          orderBy: { createdAt: 'desc' },
+          take: 15,
+          select: {
+            progress: true,
+            completedAt: true,
+            createdAt: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+            course: { select: { title: true } },
+          },
+        }),
+        this.prisma.issuedCertificate.findMany({
+          where: { tenantId },
+          orderBy: { issuedAt: 'desc' },
+          take: 15,
+          select: {
+            courseTitle: true,
+            certificateNumber: true,
+            issuedAt: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        }).catch(() => [] as Array<{
+          courseTitle: string;
+          certificateNumber: string;
+          issuedAt: Date;
+          user: { firstName: string | null; lastName: string | null; email: string } | null;
+        }>),
+        this.prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { name: true, slug: true },
+        }).catch(() => null),
       ]);
 
       const deptNameById = new Map(departments.map((d) => [d.id, d.name]));
@@ -243,6 +338,16 @@ export class PlatformContextService {
         [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
 
       const lines: string[] = [];
+
+      const snapshotAt = new Date().toISOString();
+      lines.push(`## Live Platform Snapshot (generated at ${snapshotAt})`);
+      lines.push(
+        '- This snapshot is regenerated on every question. Treat every section below as the CURRENT state of the portal at the timestamp above; do not answer from earlier turns if this data disagrees with them.',
+      );
+      if (tenant) {
+        lines.push(`- Organization: ${tenant.name} (${tenant.slug})`);
+      }
+      lines.push('');
 
       // ── Organization overview ──
       lines.push('## Organization Overview');
@@ -313,6 +418,88 @@ export class PlatformContextService {
         })
         .join(', ');
       lines.push(`- Employees by designation: ${desigDist || 'n/a'}`);
+
+      // ── Employee roster (bounded) ──
+      lines.push('');
+      lines.push('## Recent Employees');
+      if (recentEmployees.length === 0) {
+        lines.push('- No employees.');
+      } else {
+        lines.push(`- Showing up to ${PlatformContextService.MAX_EMPLOYEES} most recently updated:`);
+        for (const e of recentEmployees) {
+          const name = fullName(e.user);
+          const dept = e.department?.name ?? '—';
+          const desig = e.designation
+            ? `${e.designation.name}${e.designation.level ? ` (L${e.designation.level})` : ''}`
+            : '—';
+          const mgr = e.reportingManager ? fullName(e.reportingManager) : '—';
+          const status = e.user.isActive ? 'active' : 'inactive';
+          lines.push(
+            `  • ${name} <${e.user.email}> — ${e.employeeCode} | ${desig} | dept: ${dept} | manager: ${mgr} | joined: ${fmtDate(e.dateOfJoining ?? null)} | ${status}`,
+          );
+        }
+      }
+
+      // ── Knowledge base ──
+      lines.push('');
+      lines.push('## Knowledge Base');
+      if (documentStatusCounts.length === 0) {
+        lines.push('- No documents uploaded yet.');
+      } else {
+        const docSummary = documentStatusCounts
+          .map((s) => `${s.status}: ${s._count._all}`)
+          .join(', ');
+        lines.push(`- Documents by status: ${docSummary}`);
+      }
+      if (knowledgeCategories.length > 0) {
+        const catSummary = knowledgeCategories
+          .map((c) => `${c.name} (${c._count.documents})`)
+          .join(', ');
+        lines.push(`- Categories: ${catSummary}`);
+      }
+      if (recentDocuments.length > 0) {
+        lines.push(`- Most recently updated documents (up to ${PlatformContextService.MAX_DOCUMENTS}):`);
+        for (const d of recentDocuments) {
+          const cat = d.category?.name ? ` | category: ${d.category.name}` : '';
+          const tags = d.tags.length > 0 ? ` | tags: ${d.tags.join(', ')}` : '';
+          const uploader = d.uploadedBy ? ` | by: ${fullName(d.uploadedBy)}` : '';
+          lines.push(
+            `  • "${d.title}" — ${d.type}/${d.status} | file: ${d.fileName}${cat}${tags}${uploader} | updated: ${fmtDate(d.updatedAt)}`,
+          );
+        }
+      }
+
+      // ── Recent milestones ──
+      if (recentMilestones.length > 0) {
+        lines.push('');
+        lines.push('## Recent Milestones');
+        for (const m of recentMilestones) {
+          const done = m.completedAt ? ` | completed: ${fmtDate(m.completedAt)}` : '';
+          lines.push(
+            `  • "${m.title}" on "${m.project.title}" — status: ${m.status} | due: ${fmtDate(m.dueDate)}${done}`,
+          );
+        }
+      }
+
+      // ── Recent learning activity ──
+      if (recentEnrollments.length > 0 || recentCertificates.length > 0) {
+        lines.push('');
+        lines.push('## Recent Learning Activity');
+        for (const e of recentEnrollments) {
+          const state = e.completedAt
+            ? `completed on ${fmtDate(e.completedAt)}`
+            : `in progress (${Math.round(e.progress * 100)}%)`;
+          lines.push(
+            `  • ${fullName(e.user)} enrolled in "${e.course.title}" — ${state} | started: ${fmtDate(e.createdAt)}`,
+          );
+        }
+        for (const c of recentCertificates) {
+          const holder = c.user ? fullName(c.user) : '—';
+          lines.push(
+            `  • Certificate "${c.courseTitle}" issued to ${holder} on ${fmtDate(c.issuedAt)} (# ${c.certificateNumber})`,
+          );
+        }
+      }
 
       return lines.join('\n');
     } catch (err) {
