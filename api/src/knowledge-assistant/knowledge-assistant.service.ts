@@ -51,6 +51,13 @@ export class KnowledgeAssistantService {
       ? await this.platformContext.buildAdminContext(tenantId)
       : '';
 
+    // Non-admins get a strictly self-scoped context (their profile, learning,
+    // and projects) so the assistant can answer personal questions like
+    // "which courses am I enrolled in?" without leaking other users' data.
+    const userContext = isAdmin
+      ? ''
+      : await this.platformContext.buildUserContext(tenantId, user.id);
+
     const history = await this.prisma.knowledgeAssistantMessage.findMany({
       where: { tenantId, userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -65,6 +72,7 @@ export class KnowledgeAssistantService {
         content: buildKnowledgeAssistantSystemPrompt({
           documentContext: docContext,
           platformContext,
+          userContext,
         }),
       },
       ...history.reverse().map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
