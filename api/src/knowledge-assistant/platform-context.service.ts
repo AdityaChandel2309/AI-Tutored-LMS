@@ -25,6 +25,132 @@ export class PlatformContextService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Build a strictly self-scoped context block for a non-admin user.
+   * Contains ONLY data about the requesting user: their profile, department,
+   * designation, manager, their enrollments/progress, certificates, and their
+   * own project ownerships/memberships. Never leaks other employees' PII or
+   * org-wide operational data.
+   */
+  async buildUserContext(tenantId: string | null, userId: string): Promise<string> {
+    if (!tenantId || !userId) return '';
+    try {
+      const [user, enrollments, certificates, ownedProjects, memberships] = await Promise.all([
+        this.prisma.user.findFirst({
+          where: { id: userId, tenantId },
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            roles: true,
+            employeeProfile: {
+              select: {
+                employeeCode: true,
+                dateOfJoining: true,
+                location: true,
+                department: { select: { name: true } },
+                designation: { select: { name: true, level: true } },
+                reportingManager: { select: { firstName: true, lastName: true, email: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.enrollment.findMany({
+          where: { userId, course: { tenantId } },
+          orderBy: { createdAt: 'desc' },
+          take: 25,
+          select: {
+            progress: true,
+            completedAt: true,
+            createdAt: true,
+            course: { select: { title: true, status: true } },
+          },
+        }),
+        this.prisma.issuedCertificate.findMany({
+          where: { tenantId, userId },
+          orderBy: { issuedAt: 'desc' },
+          take: 25,
+          select: { verificationCode: true, issuedAt: true, course: { select: { title: true } } },
+        }).catch(() => [] as Array<{ verificationCode: string; issuedAt: Date; course: { title: string } | null }>),
+        this.prisma.project.findMany({
+          where: { tenantId, ownerId: userId },
+          orderBy: { updatedAt: 'desc' },
+          take: 15,
+          select: { title: true, status: true, startDate: true, targetEndDate: true, actualEndDate: true },
+        }),
+        this.prisma.projectMember.findMany({
+          where: { userId, project: { tenantId } },
+          orderBy: { joinedAt: 'desc' },
+          take: 15,
+          select: { role: true, project: { select: { title: true, status: true } } },
+        }),
+      ]);
+
+      if (!user) return '';
+
+      const fmtDate = (d: Date | null | undefined) =>
+        d ? new Date(d).toISOString().slice(0, 10) : '—';
+      const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+      const ep = user.employeeProfile;
+      const mgr = ep?.reportingManager;
+      const mgrName = mgr
+        ? [mgr.firstName, mgr.lastName].filter(Boolean).join(' ') || mgr.email
+        : '—';
+
+      const lines: string[] = [];
+      lines.push('## Your Profile');
+      lines.push(`- Name: ${name}`);
+      lines.push(`- Email: ${user.email}`);
+      if (ep) {
+        lines.push(`- Employee code: ${ep.employeeCode}`);
+        lines.push(`- Department: ${ep.department?.name ?? '—'}`);
+        lines.push(`- Designation: ${ep.designation?.name ?? '—'}${ep.designation?.level ? ` (level ${ep.designation.level})` : ''}`);
+        lines.push(`- Reporting manager: ${mgrName}`);
+        lines.push(`- Date of joining: ${fmtDate(ep.dateOfJoining)}`);
+        if (ep.location) lines.push(`- Location: ${ep.location}`);
+      }
+
+      lines.push('');
+      lines.push('## Your Learning');
+      if (enrollments.length === 0) {
+        lines.push('- No enrollments yet.');
+      } else {
+        const completed = enrollments.filter((e) => e.completedAt).length;
+        lines.push(`- Enrollments: ${enrollments.length} shown, ${completed} completed`);
+        for (const e of enrollments) {
+          const state = e.completedAt
+            ? `completed on ${fmtDate(e.completedAt)}`
+            : `in progress (${Math.round(e.progress * 100)}%)`;
+          lines.push(`  • "${e.course.title}" — ${state}`);
+        }
+      }
+      if (certificates.length > 0) {
+        lines.push(`- Certificates: ${certificates.length}`);
+        for (const c of certificates) {
+          lines.push(`  • "${c.course?.title ?? 'Course'}" — issued ${fmtDate(c.issuedAt)} (code ${c.verificationCode})`);
+        }
+      }
+
+      lines.push('');
+      lines.push('## Your Projects');
+      if (ownedProjects.length === 0 && memberships.length === 0) {
+        lines.push('- You are not on any projects.');
+      } else {
+        for (const p of ownedProjects) {
+          lines.push(`  • Owner of "${p.title}" — status: ${p.status} | start: ${fmtDate(p.startDate)} | target: ${fmtDate(p.targetEndDate)}${p.actualEndDate ? ` | completed: ${fmtDate(p.actualEndDate)}` : ''}`);
+        }
+        for (const m of memberships) {
+          lines.push(`  • ${m.role} on "${m.project.title}" — status: ${m.project.status}`);
+        }
+      }
+
+      return lines.join('\n');
+    } catch (err) {
+      this.logger.warn(`Failed to build user context: ${(err as Error).message}`);
+      return '';
+    }
+  }
+
+  /**
    * Build the admin platform-data context block. Returns an empty string if no
    * tenant is resolved or if aggregation fails (the assistant then simply
    * answers from documents only).
