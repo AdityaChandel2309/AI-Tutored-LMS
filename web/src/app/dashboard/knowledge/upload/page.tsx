@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadDocument, getDocumentCategories } from "@/lib/api/knowledge";
-import type { DocumentCategory } from "@/lib/types/knowledge";
+import type { Document, DocumentCategory } from "@/lib/types/knowledge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -25,6 +25,7 @@ export default function KnowledgeUploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [lastError, setLastError] = useState<unknown>(null);
+  const [uploaded, setUploaded] = useState<Document | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -56,7 +57,7 @@ export default function KnowledgeUploadPage() {
     if (!file) return;
     setLoading(true);
     try {
-      await uploadDocument(file, {
+      const doc = await uploadDocument(file, {
         title: form.title,
         description: form.description || undefined,
         type: form.type,
@@ -64,7 +65,7 @@ export default function KnowledgeUploadPage() {
         tags: form.tags ? form.tags.split(",").map((t) => t.trim()) : undefined,
         status: form.status,
       });
-      router.push("/dashboard/knowledge");
+      setUploaded(doc);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
       setLastError(err);
@@ -211,6 +212,58 @@ export default function KnowledgeUploadPage() {
               <Notice variant="warning">{categoryError}</Notice>
             )}
             {error && <Notice variant="danger">{error}</Notice>}
+            {uploaded && (
+              <Notice variant="success">
+                <div className="space-y-2">
+                  <div>
+                    <strong>Uploaded:</strong> {uploaded.title}
+                    {" — "}
+                    <span>
+                      Status:{" "}
+                      <span className="font-semibold uppercase">
+                        {uploaded.status}
+                      </span>
+                    </span>
+                  </div>
+                  {uploaded.status !== "published" && (
+                    <div className="text-sm">
+                      The Knowledge Base list only shows{" "}
+                      <strong>published</strong> documents, so this{" "}
+                      <strong>{uploaded.status}</strong> upload won&apos;t
+                      appear there until it&apos;s published.
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => router.push("/dashboard/knowledge")}
+                    >
+                      Go to Knowledge Base
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setUploaded(null);
+                        setFile(null);
+                        setForm({
+                          title: "",
+                          description: "",
+                          type: "policy",
+                          categoryId: "",
+                          tags: "",
+                          status: "published",
+                        });
+                      }}
+                    >
+                      Upload another
+                    </Button>
+                  </div>
+                </div>
+              </Notice>
+            )}
           </form>
         </Card>
       </div>
