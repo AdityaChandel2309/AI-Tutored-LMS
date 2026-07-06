@@ -27,8 +27,15 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
    * Only provided for ADMIN users — must be omitted for everyone else.
    */
   platformContext?: string;
+  /**
+   * Self-scoped snapshot (the requesting user's own profile, learning, and
+   * projects). Provided to non-admin users so they can ask about their own
+   * data. Must never contain other users' PII.
+   */
+  userContext?: string;
 }): string {
   const isAdmin = Boolean(params.platformContext && params.platformContext.trim());
+  const hasUserContext = Boolean(params.userContext && params.userContext.trim());
 
   const parts = [
     SYSTEM_PROMPT_GUARD,
@@ -48,11 +55,12 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
     );
   } else {
     parts.push(
-      '- Answer questions based on the company documents listed below.',
-      '- Always cite which document(s) your answer is based on.',
+      '- Answer questions based on the company documents and the requesting user\'s own profile data below.',
+      '- When you use a company document, cite which document(s) your answer is based on.',
+      '- For personal questions (e.g. "which courses am I enrolled in?", "who is my manager?", "what projects am I on?"), answer from the "Your profile" section below.',
       '- If you cannot find relevant information, say so clearly.',
       '- Do not fabricate information not present in the documents.',
-      '- You do not have access to live operational data (projects, employees, courses, metrics). If asked about those, explain that this information is only available to administrators.',
+      '- You do not have access to org-wide data about other employees, other users\' projects, or organization metrics. If asked about those, explain that this information is only available to administrators.',
     );
   }
 
@@ -64,6 +72,10 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
     parts.push('');
     parts.push('Live platform data (administrator view — current organization state):');
     parts.push(params.platformContext as string);
+  } else if (hasUserContext) {
+    parts.push('');
+    parts.push('Your profile (self-scoped — only about the requesting user):');
+    parts.push(params.userContext as string);
   }
 
   return parts.join('\n');
