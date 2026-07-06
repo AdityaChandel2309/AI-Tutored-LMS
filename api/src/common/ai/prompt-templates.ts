@@ -64,6 +64,10 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
     );
   }
 
+  parts.push(
+    '- If the user asks about a specific document, term, or acronym and the "Available documents" section does not contain it, say clearly that no matching document was found in the knowledge base and suggest they check the document title or re-upload it — do NOT guess an answer from department, course, or profile lists.',
+  );
+
   parts.push('');
   parts.push('Available documents:');
   parts.push(params.documentContext || 'No matching documents found.');
