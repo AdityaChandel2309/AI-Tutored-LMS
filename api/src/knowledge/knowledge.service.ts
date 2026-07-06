@@ -426,6 +426,20 @@ export class KnowledgeService {
       );
     }
 
+    // Wipe any prior chunks so re-index / backfill actually replaces
+    // stale metadata-only chunks (e.g. docs uploaded before body
+    // extraction was wired up). `indexDocuments` short-circuits when
+    // chunks already exist, so we must clear them here.
+    try {
+      await this.prisma.$executeRaw`
+        DELETE FROM "DocumentChunk" WHERE "documentId" = ${doc.id}
+      `;
+    } catch (err) {
+      this.logger.warn(
+        `Failed to clear existing chunks for document ${doc.id}: ${(err as Error).message}`,
+      );
+    }
+
     try {
       await this.embeddingService.indexDocuments(tenantId, [
         {
@@ -440,6 +454,27 @@ export class KnowledgeService {
         `Failed to index document ${doc.id}: ${(err as Error).message}`,
       );
     }
+  }
+
+  /**
+   * Force-reindex a single document. Used by the admin reindex endpoint
+   * so previously-uploaded docs can pick up body text extraction.
+   */
+  async reindexDocument(tenantId: string | null, id: string) {
+    if (!tenantId) throw new ForbiddenException('Tenant could not be resolved');
+    const doc = await this.prisma.document.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        fileObjectKey: true,
+        mimeType: true,
+      },
+    });
+    if (!doc) throw new NotFoundException('Document not found');
+    await this.indexWithExtractedText(tenantId, doc);
+    return { ok: true, documentId: id };
   }
 
   /**
