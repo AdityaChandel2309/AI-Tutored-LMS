@@ -242,22 +242,48 @@ export class DocumentEmbeddingService {
     categoryId?: string,
     isAdmin = false,
   ): Promise<SearchResult[]> {
-    const words = query.split(/\s+/).filter((w) => w.length > 2).slice(0, 5).join(' & ');
-    if (!words) return [];
+    const STOP_WORDS = new Set([
+      'the','a','an','and','or','of','to','in','on','for','is','are','was','were',
+      'be','been','being','it','this','that','these','those','with','from','by','as',
+      'at','me','my','you','your','we','our','us','i','tell','something','about',
+      'give','show','doc','docs','document','documents','uploaded','upload','info',
+      'information','please','can','could','would','what','which','who','how','why',
+      'when','where','know','knowledge','base','file','files','details','detail',
+    ]);
+    const terms = Array.from(
+      new Set(
+        query
+          .toLowerCase()
+          .split(/[^a-z0-9]+/i)
+          .map((w) => w.trim())
+          .filter((w) => w.length >= 2 && !STOP_WORDS.has(w)),
+      ),
+    ).slice(0, 8);
 
-    const where: Record<string, unknown> = isAdmin
+    // Fall back to any non-stopword token from the raw query if strict
+    // filtering removed everything (e.g. "cs", "sop").
+    const searchTerms = terms.length > 0
+      ? terms
+      : query.toLowerCase().split(/[^a-z0-9]+/i).filter((w) => w.length >= 2).slice(0, 5);
+    if (searchTerms.length === 0) return [];
+
+    const baseWhere: Record<string, unknown> = isAdmin
       ? { tenantId, status: { not: 'archived' } }
       : { tenantId, status: 'published' };
-    if (categoryId) where.categoryId = categoryId;
+    if (categoryId) baseWhere.categoryId = categoryId;
+
+    // Match ANY term across title/description/tags/fileName. Previously we
+    // AND-joined the terms into a single `contains` string, which only
+    // matched when the user typed the phrase verbatim.
+    const orClauses = searchTerms.flatMap((term) => [
+      { title: { contains: term, mode: 'insensitive' as const } },
+      { description: { contains: term, mode: 'insensitive' as const } },
+      { fileName: { contains: term, mode: 'insensitive' as const } },
+      { tags: { has: term } },
+    ]);
 
     const docs = await this.prisma.document.findMany({
-      where: {
-        ...where,
-        OR: [
-          { title: { contains: words.replace(/ & /g, ' '), mode: 'insensitive' } },
-          { description: { contains: words.replace(/ & /g, ' '), mode: 'insensitive' } },
-        ],
-      },
+      where: { ...baseWhere, OR: orClauses },
       take: topK,
       orderBy: { updatedAt: 'desc' },
       select: {
