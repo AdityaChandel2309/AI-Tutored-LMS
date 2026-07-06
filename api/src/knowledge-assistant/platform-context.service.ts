@@ -325,7 +325,7 @@ export class PlatformContextService {
         }>),
         this.prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { name: true, slug: true },
+          select: { name: true, subdomain: true },
         }).catch(() => null),
       ]);
 
@@ -345,7 +345,7 @@ export class PlatformContextService {
         '- This snapshot is regenerated on every question. Treat every section below as the CURRENT state of the portal at the timestamp above; do not answer from earlier turns if this data disagrees with them.',
       );
       if (tenant) {
-        lines.push(`- Organization: ${tenant.name} (${tenant.slug})`);
+        lines.push(`- Organization: ${tenant.name} (${tenant.subdomain})`);
       }
       lines.push('');
 
