@@ -12,6 +12,7 @@ const MAX_CONTEXT_DOCS = 3;
 const MAX_CHUNKS_PER_CONTEXT_DOC = 6;
 const MAX_CONTEXT_CHARS_PER_DOC = 9000;
 const FALLBACK_EXCERPT_CHARS = 4500;
+const DIRECT_DOC_SUMMARY_CHARS = 6000;
 
 @Injectable()
 export class KnowledgeAssistantService {
@@ -95,6 +96,24 @@ export class KnowledgeAssistantService {
     const docContext = relevantDocs.length > 0
       ? await this.buildExpandedDocumentContext(tenantId, results, isAdmin)
       : 'No documents in the tenant knowledge base matched this query. Tell the user no matching document was found rather than speculating.';
+
+    const directDocumentAnswer = this.shouldAnswerDirectlyFromDocument(userMessage)
+      ? this.buildDirectDocumentAnswer(docContext, relevantDocs)
+      : null;
+
+    if (directDocumentAnswer) {
+      const sourceDocIds = Array.from(new Set(results.map((r) => r.documentId)));
+
+      await this.prisma.knowledgeAssistantMessage.create({
+        data: { tenantId, userId: user.id, role: 'user', content: userMessage, sourceDocIds: [] },
+      });
+
+      await this.prisma.knowledgeAssistantMessage.create({
+        data: { tenantId, userId: user.id, role: 'assistant', content: directDocumentAnswer, sourceDocIds },
+      });
+
+      return { role: 'assistant', content: directDocumentAnswer, sources: relevantDocs };
+    }
 
     // Live platform data — ADMIN ONLY. Non-admins never receive this context,
     // so the assistant cannot answer org-wide operational questions for them.
@@ -245,6 +264,49 @@ export class KnowledgeAssistantService {
       '',
       excerpt,
       normalizedContext.length > FALLBACK_EXCERPT_CHARS ? '\n[Excerpt truncated]' : '',
+      '',
+      'Sources:',
+      sourceList,
+    ].filter(Boolean).join('\n');
+  }
+
+  private shouldAnswerDirectlyFromDocument(question: string): boolean {
+    const normalized = question.toLowerCase();
+    return (
+      /\b(what|tell|summari[sz]e|summary|inside|contain|contains|content|about)\b/.test(normalized) &&
+      /\b(doc|docs|document|documents|pdf|file|knowledge\s*base)\b/.test(normalized)
+    );
+  }
+
+  private buildDirectDocumentAnswer(
+    documentContext: string,
+    docs: Array<{ title: string; fileName: string; description: string | null }>,
+  ): string | null {
+    const normalizedContext = documentContext.trim();
+    if (!docs.length || !normalizedContext || normalizedContext.startsWith('No documents in the tenant')) {
+      return null;
+    }
+
+    if (normalizedContext.includes('No extractable body text is available for this document.')) {
+      const docList = docs.map((doc) => `- ${doc.title} (${doc.fileName})`).join('\n');
+      return [
+        'I found the matching document, but its body text has not been extracted yet, so I cannot accurately tell what is inside it.',
+        '',
+        'Matching document:',
+        docList,
+        '',
+        'Please reindex or re-upload the document so the assistant can read its contents.',
+      ].join('\n');
+    }
+
+    const excerpt = normalizedContext.slice(0, DIRECT_DOC_SUMMARY_CHARS).trim();
+    const sourceList = docs.map((doc) => `- ${doc.title} (${doc.fileName})`).join('\n');
+
+    return [
+      'Here is what I found inside the matching knowledge-base document:',
+      '',
+      excerpt,
+      normalizedContext.length > DIRECT_DOC_SUMMARY_CHARS ? '\n[Excerpt truncated]' : '',
       '',
       'Sources:',
       sourceList,
