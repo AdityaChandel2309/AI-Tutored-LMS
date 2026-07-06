@@ -69,8 +69,8 @@ export class PlatformContextService {
           where: { tenantId, userId },
           orderBy: { issuedAt: 'desc' },
           take: 25,
-          select: { verificationCode: true, issuedAt: true, course: { select: { title: true } } },
-        }).catch(() => [] as Array<{ verificationCode: string; issuedAt: Date; course: { title: string } | null }>),
+          select: { certificateNumber: true, courseTitle: true, issuedAt: true },
+        }).catch(() => [] as Array<{ certificateNumber: string; courseTitle: string; issuedAt: Date }>),
         this.prisma.project.findMany({
           where: { tenantId, ownerId: userId },
           orderBy: { updatedAt: 'desc' },
@@ -126,7 +126,7 @@ export class PlatformContextService {
       if (certificates.length > 0) {
         lines.push(`- Certificates: ${certificates.length}`);
         for (const c of certificates) {
-          lines.push(`  • "${c.course?.title ?? 'Course'}" — issued ${fmtDate(c.issuedAt)} (code ${c.verificationCode})`);
+          lines.push(`  • "${c.courseTitle}" — issued ${fmtDate(c.issuedAt)} (# ${c.certificateNumber})`);
         }
       }
 
