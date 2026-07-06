@@ -28,6 +28,18 @@ export interface SearchResult {
   score: number;
 }
 
+type ChunkRow = {
+  id: string;
+  documentId: string;
+  chunkText: string;
+  chunkIndex: number;
+  document: {
+    title: string;
+    description: string | null;
+    fileName: string;
+  };
+};
+
 @Injectable()
 export class DocumentEmbeddingService {
   private readonly logger = new Logger(DocumentEmbeddingService.name);
@@ -272,8 +284,50 @@ export class DocumentEmbeddingService {
       : { tenantId, status: 'published' };
     if (categoryId) baseWhere.categoryId = categoryId;
 
-    // Match ANY term across title/description/tags/fileName. Previously we
-    // AND-joined the terms into a single `contains` string, which only
+    // First search inside indexed chunk text. This is the important fallback
+    // path when the embedding API is unavailable: users should still be able
+    // to ask about words/sections that exist inside PDFs, not only document
+    // titles or descriptions.
+    const chunkRows = await this.prisma.documentChunk.findMany({
+      where: {
+        tenantId,
+        document: baseWhere,
+        OR: searchTerms.map((term) => ({
+          chunkText: { contains: term, mode: 'insensitive' as const },
+        })),
+      },
+      orderBy: { chunkIndex: 'asc' },
+      take: topK,
+      select: {
+        id: true,
+        documentId: true,
+        chunkText: true,
+        chunkIndex: true,
+        document: {
+          select: {
+            title: true,
+            description: true,
+            fileName: true,
+          },
+        },
+      },
+    }) as ChunkRow[];
+
+    if (chunkRows.length > 0) {
+      return chunkRows.map((c) => ({
+        chunkId: c.id,
+        documentId: c.documentId,
+        title: c.document.title,
+        description: c.document.description,
+        fileName: c.document.fileName,
+        chunkText: c.chunkText,
+        chunkIndex: c.chunkIndex,
+        score: 0,
+      }));
+    }
+
+    // Then match ANY term across title/description/tags/fileName. Previously
+    // we AND-joined the terms into a single `contains` string, which only
     // matched when the user typed the phrase verbatim.
     const orClauses = searchTerms.flatMap((term) => [
       { title: { contains: term, mode: 'insensitive' as const } },

@@ -14,6 +14,9 @@ describe('DocumentEmbeddingService', () => {
       document: {
         findMany: jest.fn(),
       },
+      documentChunk: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
     llm = {
       embed: jest.fn(),

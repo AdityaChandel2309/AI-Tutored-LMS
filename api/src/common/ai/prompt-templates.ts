@@ -47,6 +47,7 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
   if (isAdmin) {
     parts.push(
       '- Answer questions using the company documents and the live platform data below.',
+      '- For questions asking what is inside a document, summarize the extracted document content from the "Available documents" section; do not answer from the live platform document list alone.',
       '- For questions about ongoing/completed projects, employees, courses, enrollments, or organization metrics, use the "Live platform data" section.',
       '- When you use a company document, cite which document(s) your answer is based on.',
       '- If you cannot find relevant information in either source, say so clearly.',
@@ -56,6 +57,7 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
   } else {
     parts.push(
       '- Answer questions based on the company documents and the requesting user\'s own profile data below.',
+      '- For questions asking what is inside a document, summarize the extracted document content from the "Available documents" section.',
       '- When you use a company document, cite which document(s) your answer is based on.',
       '- For personal questions (e.g. "which courses am I enrolled in?", "who is my manager?", "what projects am I on?"), answer from the "Your profile" section below.',
       '- If you cannot find relevant information, say so clearly.',
@@ -65,6 +67,7 @@ export function buildKnowledgeAssistantSystemPrompt(params: {
   }
 
   parts.push(
+    '- If a matching document is listed but its extracted content says no body text is available, say the document exists but its content could not be extracted; do not invent a generic explanation from the title.',
     '- If the user asks about a specific document, term, or acronym and the "Available documents" section does not contain it, say clearly that no matching document was found in the knowledge base and suggest they check the document title or re-upload it — do NOT guess an answer from department, course, or profile lists.',
   );
 
